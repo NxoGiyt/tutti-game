@@ -96,12 +96,23 @@ function connectToServer() {
       const message = JSON.parse(event.data)
 
       if (message.type === 'room-created') {
-  roomCode = message.roomCode
+  roomCode = String(message.roomCode ?? '')
+
+  console.log('RAUM ERHALTEN:', roomCode)
+
+  renderGame()
+  showToast(`Raum ${roomCode} erstellt.`)
+
   return
 }
 
 if (message.type === 'joined') {
-  roomCode = message.roomCode
+  roomCode = String(message.roomCode ?? '')
+
+  console.log('RAUM BEIGETRETEN:', roomCode)
+
+  startGame()
+
   return
 }
 
