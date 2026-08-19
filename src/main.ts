@@ -8,6 +8,131 @@ type Player = {
   color: string
 }
 
+type ServerMessage =
+  | {
+      type: 'connected'
+      playerId: string
+    }
+  | {
+      type: 'room-created'
+      roomCode: string
+      players: Player[]
+      drawerId: string
+      round: number
+      timeLeft: number
+      word?: string
+    }
+  | {
+      type: 'room-joined'
+      roomCode: string
+      players: Player[]
+      drawerId: string
+      round: number
+      timeLeft: number
+      word?: string
+    }
+  | {
+      type: 'state'
+      roomCode: string
+      players: Player[]
+      drawerId: string
+      round: number
+      timeLeft: number
+      word?: string
+    }
+  | {
+      type: 'player-joined'
+      player: Player
+      players: Player[]
+    }
+  | {
+      type: 'player-left'
+      playerId: string
+      players: Player[]
+    }
+  | {
+      type: 'word-choice'
+      words: string[]
+      round: number
+    }
+  | {
+      type: 'word-selected'
+      drawerId: string
+      round: number
+      timeLeft: number
+      word?: string
+    }
+  | {
+      type: 'draw'
+      x: number
+      y: number
+      lastX: number
+      lastY: number
+      color: string
+      size: number
+    }
+  | {
+      type: 'clear-canvas'
+    }
+  | {
+      type: 'chat'
+      playerName: string
+      text: string
+    }
+  | {
+      type: 'correct-answer'
+      playerId: string
+      playerName: string
+      placement: number
+      points: number
+      players: Player[]
+    }
+  | {
+      type: 'round-finished'
+      word: string
+      players: Player[]
+      correctGuesses: string[]
+    }
+  | {
+      type: 'error'
+      message: string
+    }
+
+type ClientMessage =
+  | {
+      type: 'create-room'
+      playerId: string
+      playerName: string
+    }
+  | {
+      type: 'join-room'
+      playerId: string
+      playerName: string
+      roomCode: string
+    }
+  | {
+      type: 'select-word'
+      word: string
+    }
+  | {
+      type: 'draw'
+      x: number
+      y: number
+      lastX: number
+      lastY: number
+      color: string
+      size: number
+    }
+  | {
+      type: 'clear-canvas'
+    }
+  | {
+      type: 'guess'
+      text: string
+    }
+
+const app = document.querySelector<HTMLDivElement>('#app')!
+
 const WORDS = [
   'Fall Guys',
   'Hex-A-Gone',
@@ -40,8 +165,6 @@ const COLORS = [
   '#ff6b4a',
 ]
 
-const app = document.querySelector<HTMLDivElement>('#app')!
-
 const playerId =
   localStorage.getItem('stumblesketch-player-id') ??
   crypto.randomUUID()
@@ -59,14 +182,11 @@ let timeLeft = 60
 let timer: number | undefined
 
 let players: Player[] = []
-
-/*
- * Spieler, die diese Runde richtig geraten haben.
- * Die Reihenfolge ist gleichzeitig die Platzierung.
- */
 let correctGuesses: string[] = []
-
 let roundFinished = false
+
+let socket: WebSocket | null = null
+let connected = false
 
 const state = {
   brushColor: '#171721',
@@ -76,7 +196,7 @@ const state = {
   lastY: 0,
 }
 
-function escapeHtml(value: string) {
+function escapeHtml(value: string): string {
   return value
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
@@ -85,44 +205,208 @@ function escapeHtml(value: string) {
     .replaceAll("'", '&#039;')
 }
 
-function randomWord() {
-  return WORDS[Math.floor(Math.random() * WORDS.length)]
-}
-
-function randomColor() {
+function randomColor(): string {
   return COLORS[Math.floor(Math.random() * COLORS.length)]
 }
 
-function getThreeWords() {
-  const result: string[] = []
-
-  while (result.length < 3) {
-    const word = randomWord()
-
-    if (!result.includes(word)) {
-      result.push(word)
-    }
+function send(message: ClientMessage): void {
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    showToast('Keine Verbindung zum Server.')
+    return
   }
 
-  return result
+  socket.send(JSON.stringify(message))
 }
 
-function createFakePlayers() {
-  players = [
-    {
-      id: playerId,
-      name: playerName || 'Du',
-      score: 0,
-      ready: false,
-      color: randomColor(),
-    },
-  ]
+function connectToServer(): void {
+  if (
+    socket &&
+    (
+      socket.readyState === WebSocket.OPEN ||
+      socket.readyState === WebSocket.CONNECTING
+    )
+  ) {
+    return
+  }
+
+  const protocol =
+    window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+
+  const host = window.location.hostname || 'localhost'
+
+  const port =
+    window.location.port === '5173'
+      ? '3001'
+      : window.location.port || '3001'
+
+  const url =
+    `${protocol}//${host}:${port}`
+
+  socket = new WebSocket(url)
+
+  socket.addEventListener('open', () => {
+    connected = true
+  })
+
+  socket.addEventListener('close', () => {
+    connected = false
+    showToast('Verbindung zum Server getrennt.')
+  })
+
+  socket.addEventListener('error', () => {
+    connected = false
+    showToast('Server nicht erreichbar.')
+  })
+
+  socket.addEventListener('message', (event) => {
+    try {
+      const message =
+        JSON.parse(event.data) as ServerMessage
+
+      handleServerMessage(message)
+    } catch {
+      showToast('Ungültige Serverantwort.')
+    }
+  })
 }
 
-function renderLobby() {
+function handleServerMessage(message: ServerMessage): void {
+  switch (message.type) {
+    case 'connected':
+      return
+
+    case 'room-created':
+    case 'room-joined':
+    case 'state':
+      roomCode = message.roomCode
+      players = message.players
+      drawerId = message.drawerId
+      round = message.round
+      timeLeft = message.timeLeft
+
+      if (message.word) {
+        currentWord = message.word
+      }
+
+      renderGame()
+
+      if (drawerId === playerId) {
+        showWordChoice()
+      } else {
+        startRoundTimer()
+      }
+
+      return
+
+    case 'player-joined':
+      players = message.players
+      renderPlayers()
+      addMessage(
+        'SYSTEM',
+        `${message.player.name} ist beigetreten.`,
+      )
+      return
+
+    case 'player-left':
+      players = message.players
+      renderPlayers()
+      addMessage(
+        'SYSTEM',
+        'Ein Spieler hat den Raum verlassen.',
+      )
+      return
+
+    case 'word-choice':
+      round = message.round
+      roundFinished = false
+      currentWord = ''
+      correctGuesses = []
+
+      showWordChoiceWithWords(message.words)
+
+      return
+
+    case 'word-selected':
+      drawerId = message.drawerId
+      round = message.round
+      timeLeft = message.timeLeft
+      roundFinished = false
+
+      if (drawerId !== playerId) {
+        currentWord = ''
+      }
+
+      updateDrawer()
+      updateWord()
+      clearCanvas()
+      startRoundTimer()
+
+      return
+
+    case 'draw':
+      drawRemoteLine(message)
+      return
+
+    case 'clear-canvas':
+      clearCanvas()
+      return
+
+    case 'chat':
+      addMessage(
+        message.playerName,
+        message.text,
+      )
+      return
+
+    case 'correct-answer':
+      players = message.players
+      correctGuesses.push(message.playerId)
+
+      addCorrectMessage(
+        message.playerName,
+        message.placement,
+        message.points,
+      )
+
+      renderPlayers()
+
+      if (message.playerId === playerId) {
+        showToast(
+          `Richtig! Platz ${message.placement} · +${message.points}`,
+        )
+      }
+
+      return
+
+    case 'round-finished':
+      currentWord =
+        message.word
+
+      players =
+        message.players
+
+      correctGuesses =
+        message.correctGuesses
+
+      roundFinished = true
+
+      clearInterval(timer)
+
+      showRoundResults()
+
+      return
+
+    case 'error':
+      showToast(message.message)
+      return
+  }
+}
+
+function renderLobby(): void {
   app.innerHTML = `
     <main class="screen lobby-screen">
       <div class="lobby-card">
+
         <div class="brand">
           <div class="brand-icon">✏️</div>
 
@@ -146,7 +430,11 @@ function renderLobby() {
         </div>
 
         <div class="room-actions">
-          <button id="create-room" class="primary-button">
+
+          <button
+            id="create-room"
+            class="primary-button"
+          >
             🎮 Raum erstellen
           </button>
 
@@ -155,6 +443,7 @@ function renderLobby() {
           </div>
 
           <div class="join-row">
+
             <input
               id="room"
               class="big-input"
@@ -163,13 +452,19 @@ function renderLobby() {
               autocomplete="off"
             />
 
-            <button id="join-room" class="secondary-button">
+            <button
+              id="join-room"
+              class="secondary-button"
+            >
               Beitreten
             </button>
+
           </div>
+
         </div>
 
         <div class="feature-row">
+
           <div>
             <strong>🎨 Zeichnen</strong>
             <span>Live-Canvas</span>
@@ -184,8 +479,12 @@ function renderLobby() {
             <strong>🏆 Gewinnen</strong>
             <span>Mehr Punkte</span>
           </div>
+
         </div>
+
       </div>
+
+      <div id="toast" class="toast"></div>
     </main>
   `
 
@@ -193,7 +492,8 @@ function renderLobby() {
     document.querySelector<HTMLInputElement>('#name')!
 
   nameInput.addEventListener('input', () => {
-    playerName = nameInput.value.trim()
+    playerName =
+      nameInput.value.trim()
 
     localStorage.setItem(
       'stumblesketch-player-name',
@@ -204,17 +504,27 @@ function renderLobby() {
   document
     .querySelector<HTMLButtonElement>('#create-room')!
     .addEventListener('click', () => {
-      if (!validateName()) return
+      if (!validateName()) {
+        return
+      }
 
-      roomCode = generateRoomCode()
+      connectToServer()
 
-      startGame()
+      waitForSocket(() => {
+        send({
+          type: 'create-room',
+          playerId,
+          playerName,
+        })
+      })
     })
 
   document
     .querySelector<HTMLButtonElement>('#join-room')!
     .addEventListener('click', () => {
-      if (!validateName()) return
+      if (!validateName()) {
+        return
+      }
 
       const code =
         document
@@ -223,66 +533,89 @@ function renderLobby() {
           .trim()
           .toUpperCase()
 
-      if (code.length !== 6) {
-        showToast('Der Raum-Code muss 6 Zeichen haben.')
+      if (!/^[A-Z0-9]{6}$/.test(code)) {
+        showToast(
+          'Der Raum-Code muss 6 Zeichen haben.',
+        )
         return
       }
 
-      roomCode = code
+      connectToServer()
 
-      startGame()
+      waitForSocket(() => {
+        send({
+          type: 'join-room',
+          playerId,
+          playerName,
+          roomCode: code,
+        })
+      })
     })
 }
 
-function validateName() {
-  if (!playerName.trim()) {
-    showToast('Gib zuerst deinen Namen ein.')
+function waitForSocket(
+  callback: () => void,
+): void {
+  if (
+    socket &&
+    socket.readyState === WebSocket.OPEN
+  ) {
+    callback()
+    return
+  }
+
+  const start =
+    Date.now()
+
+  const interval =
+    window.setInterval(() => {
+      if (
+        socket &&
+        socket.readyState === WebSocket.OPEN
+      ) {
+        clearInterval(interval)
+        callback()
+        return
+      }
+
+      if (Date.now() - start > 5000) {
+        clearInterval(interval)
+        showToast(
+          'Server konnte nicht erreicht werden.',
+        )
+      }
+    }, 50)
+}
+
+function validateName(): boolean {
+  playerName =
+    playerName.trim()
+
+  if (!playerName) {
+    showToast(
+      'Gib zuerst deinen Namen ein.',
+    )
     return false
   }
 
   if (playerName.length > 16) {
-    showToast('Der Name darf maximal 16 Zeichen haben.')
+    showToast(
+      'Der Name darf maximal 16 Zeichen haben.',
+    )
     return false
   }
 
   return true
 }
 
-function generateRoomCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+function renderGame(): void {
+  clearInterval(timer)
 
-  let code = ''
-
-  do {
-    code = Array.from(
-      { length: 6 },
-      () =>
-        chars[
-          Math.floor(
-            Math.random() * chars.length,
-          )
-        ],
-    ).join('')
-  } while (code === roomCode)
-
-  return code
-}
-
-function startGame() {
-  createFakePlayers()
-
-  drawerId = playerId
-  round = 1
-
-  renderGame()
-
-  showWordChoice()
-}
-
-function renderGame() {
   app.innerHTML = `
     <main class="game">
+
       <header class="topbar">
+
         <div class="brand small">
           <div class="brand-icon">✏️</div>
 
@@ -300,6 +633,7 @@ function renderGame() {
           <span>RUNDE</span>
           <strong>${round}</strong>
         </div>
+
       </header>
 
       <section class="game-layout">
@@ -307,30 +641,42 @@ function renderGame() {
         <div class="main-column">
 
           <div class="game-status">
-            <div>
-              <span class="eyebrow">JETZT ZEICHNET</span>
 
-              <strong id="drawer-name">
-                ${escapeHtml(playerName)}
-              </strong>
+            <div>
+              <span class="eyebrow">
+                JETZT ZEICHNET
+              </span>
+
+              <strong id="drawer-name"></strong>
             </div>
 
-            <div class="timer" id="timer">
-              60
+            <div
+              class="timer"
+              id="timer"
+            >
+              ${timeLeft}
             </div>
 
             <div class="word-box">
-              <span>DEIN WORT</span>
+
+              <span>
+                ${drawerId === playerId
+                  ? 'DEIN WORT'
+                  : 'GESUCHTES WORT'}
+              </span>
 
               <strong id="word">
-                ${currentWord
+                ${drawerId === playerId && currentWord
                   ? escapeHtml(currentWord)
-                  : 'Wort auswählen'}
+                  : '???'}
               </strong>
+
             </div>
+
           </div>
 
           <div class="canvas-card">
+
             <canvas id="canvas"></canvas>
 
             <div class="canvas-tools">
@@ -342,56 +688,48 @@ function renderGame() {
                   class="color-picker"
                   type="color"
                   value="${state.brushColor}"
-                  title="Eigene Farbe auswählen"
                 />
 
                 <button
                   class="color active"
                   data-color="#171721"
                   style="background:#171721"
-                  title="Schwarz"
                 ></button>
 
                 <button
                   class="color"
                   data-color="#ffffff"
                   style="background:#ffffff"
-                  title="Weiß"
                 ></button>
 
                 <button
                   class="color"
                   data-color="#ff4f8b"
                   style="background:#ff4f8b"
-                  title="Pink"
                 ></button>
 
                 <button
                   class="color"
                   data-color="#6c63ff"
                   style="background:#6c63ff"
-                  title="Lila"
                 ></button>
 
                 <button
                   class="color"
                   data-color="#00c2ff"
                   style="background:#00c2ff"
-                  title="Blau"
                 ></button>
 
                 <button
                   class="color"
                   data-color="#35d07f"
                   style="background:#35d07f"
-                  title="Grün"
                 ></button>
 
                 <button
                   class="color"
                   data-color="#ffb020"
                   style="background:#ffb020"
-                  title="Gelb"
                 ></button>
 
               </div>
@@ -408,16 +746,23 @@ function renderGame() {
                 />
               </label>
 
-              <button id="clear" class="tool-button">
+              <button
+                id="clear"
+                class="tool-button"
+              >
                 🗑️ Löschen
               </button>
+
             </div>
+
           </div>
+
         </div>
 
         <aside class="sidebar">
 
           <section class="panel players-panel">
+
             <div class="panel-title">
               <span>SPIELER</span>
 
@@ -427,6 +772,7 @@ function renderGame() {
             </div>
 
             <div id="players"></div>
+
           </section>
 
           <section class="panel chat-panel">
@@ -439,80 +785,119 @@ function renderGame() {
               </span>
             </div>
 
-            <div id="messages" class="messages"></div>
+            <div
+              id="messages"
+              class="messages"
+            ></div>
 
-            <form id="guess-form" class="guess">
+            <form
+              id="guess-form"
+              class="guess"
+            >
 
-  <input
-    id="guess"
-    maxlength="60"
-    placeholder="${
-      drawerId === playerId
-        ? 'Du zeichnest gerade'
-        : 'Was ist das?'
-    }"
-    autocomplete="off"
-    ${drawerId === playerId ? 'disabled' : ''}
-  />
+              <input
+                id="guess"
+                maxlength="60"
+                placeholder="${
+                  drawerId === playerId
+                    ? 'Du zeichnest gerade'
+                    : 'Was ist das?'
+                }"
+                autocomplete="off"
+                ${
+                  drawerId === playerId
+                    ? 'disabled'
+                    : ''
+                }
+              />
 
-  <button
-    type="submit"
-    ${drawerId === playerId ? 'disabled' : ''}
-  >
-    ➤
-  </button>
+              <button
+                type="submit"
+                ${
+                  drawerId === playerId
+                    ? 'disabled'
+                    : ''
+                }
+              >
+                ➤
+              </button>
 
-</form>
+            </form>
 
           </section>
+
         </aside>
+
       </section>
+
     </main>
 
-    <div id="toast" class="toast"></div>
+    <div
+      id="toast"
+      class="toast"
+    ></div>
 
-    <div id="word-choice" class="modal-backdrop">
+    <div
+      id="word-choice"
+      class="modal-backdrop hidden"
+    >
       <div class="word-choice-card">
 
-        <div class="choice-icon">✏️</div>
+        <div class="choice-icon">
+          ✏️
+        </div>
 
         <span class="eyebrow">
           RUNDE ${round}
         </span>
 
-        <h2>Wähle dein Wort</h2>
+        <h2>
+          Wähle dein Wort
+        </h2>
 
         <p>
-          Du hast drei Möglichkeiten.
-          Die anderen Spieler dürfen dein Wort nicht sehen.
+          Die anderen Spieler dürfen dein Wort
+          nicht sehen.
         </p>
 
-        <div id="word-options" class="word-options"></div>
+        <div
+          id="word-options"
+          class="word-options"
+        ></div>
 
       </div>
     </div>
 
-    <div id="round-result" class="modal-backdrop hidden">
+    <div
+      id="round-result"
+      class="modal-backdrop hidden"
+    >
       <div class="result-card">
 
-        <div class="choice-icon">🏆</div>
+        <div class="choice-icon">
+          🏆
+        </div>
 
         <span class="eyebrow">
           RUNDE ${round} BEENDET
         </span>
 
-        <h2>Das war's!</h2>
+        <h2>
+          Das war's!
+        </h2>
 
         <div class="revealed-word">
           Das Wort war:
           <strong id="result-word"></strong>
         </div>
 
-        <div id="result-players" class="result-players"></div>
+        <div
+          id="result-players"
+          class="result-players"
+        ></div>
 
         <div class="next-round-countdown">
-          Nächste Runde in
-          <strong id="result-countdown">6</strong>
+          Nächste Runde wird vom Server gestartet.
         </div>
 
       </div>
@@ -523,13 +908,19 @@ function renderGame() {
   setupTools()
   setupChat()
   renderPlayers()
+  updateDrawer()
+  updateWord()
 }
 
-function showWordChoice() {
-  clearInterval(timer)
+function showWordChoice(): void {
+  send({
+    type: 'clear-canvas',
+  })
+}
 
-  timeLeft = 60
-
+function showWordChoiceWithWords(
+  words: string[],
+): void {
   const modal =
     document.querySelector<HTMLDivElement>(
       '#word-choice',
@@ -540,113 +931,129 @@ function showWordChoice() {
       '#word-options',
     )
 
-  if (!modal || !options) return
+  if (!modal || !options) {
+    return
+  }
 
-  const words = getThreeWords()
-
-  options.innerHTML = words
-    .map(
-      (word) => `
-        <button
-          class="word-option"
-          data-word="${escapeHtml(word)}"
-        >
-          <span>🎨</span>
-          <strong>${escapeHtml(word)}</strong>
-        </button>
-      `,
-    )
-    .join('')
+  options.innerHTML =
+    words
+      .map(
+        (word) => `
+          <button
+            class="word-option"
+            data-word="${escapeHtml(word)}"
+          >
+            <span>🎨</span>
+            <strong>
+              ${escapeHtml(word)}
+            </strong>
+          </button>
+        `,
+      )
+      .join('')
 
   options
-    .querySelectorAll<HTMLButtonElement>('.word-option')
+    .querySelectorAll<HTMLButtonElement>(
+      '.word-option',
+    )
     .forEach((button) => {
-      button.addEventListener('click', () => {
-        const word = button.dataset.word
+      button.addEventListener(
+        'click',
+        () => {
+          const word =
+            button.dataset.word
 
-        if (!word) return
+          if (!word) {
+            return
+          }
 
-        selectWord(word)
-      })
+          send({
+            type: 'select-word',
+            word,
+          })
+
+          modal.classList.add('hidden')
+        },
+      )
     })
 
   modal.classList.remove('hidden')
 }
 
-function selectWord(word: string) {
-  currentWord = word
-  roundFinished = false
-  correctGuesses = []
-
-  const modal =
-    document.querySelector<HTMLDivElement>(
-      '#word-choice',
-    )
-
-  modal?.classList.add('hidden')
-
-  const wordElement =
-    document.querySelector<HTMLElement>('#word')
-
-  if (wordElement) {
-    wordElement.textContent = currentWord
-  }
-
-  const timerElement =
-    document.querySelector<HTMLDivElement>('#timer')
-
-  if (timerElement) {
-    timerElement.textContent = '60'
-  }
-
-  clearCanvas()
-
-  startRound()
-}
-
-function setupCanvas() {
+function setupCanvas(): void {
   const canvas =
-    document.querySelector<HTMLCanvasElement>('#canvas')!
+    document.querySelector<HTMLCanvasElement>(
+      '#canvas',
+    )!
 
-  const ctx = canvas.getContext('2d')!
+  const ctx =
+    canvas.getContext('2d')!
 
-  function resize() {
-    const rect = canvas.getBoundingClientRect()
+  const resize = () => {
+    const rect =
+      canvas.getBoundingClientRect()
 
-    const oldCanvas = document.createElement('canvas')
+    const oldCanvas =
+      document.createElement('canvas')
 
-    oldCanvas.width = canvas.width
-    oldCanvas.height = canvas.height
+    oldCanvas.width =
+      canvas.width
 
-    const oldCtx = oldCanvas.getContext('2d')
+    oldCanvas.height =
+      canvas.height
 
-    if (oldCtx) {
-      oldCtx.drawImage(canvas, 0, 0)
+    const oldCtx =
+      oldCanvas.getContext('2d')
+
+    if (
+      oldCtx &&
+      oldCanvas.width &&
+      oldCanvas.height
+    ) {
+      oldCtx.drawImage(
+        canvas,
+        0,
+        0,
+      )
     }
 
-    canvas.width = Math.max(
-      1,
-      Math.floor(rect.width * devicePixelRatio),
-    )
+    canvas.width =
+      Math.max(
+        1,
+        Math.floor(
+          rect.width *
+            window.devicePixelRatio,
+        ),
+      )
 
-    canvas.height = Math.max(
-      1,
-      Math.floor(rect.height * devicePixelRatio),
-    )
+    canvas.height =
+      Math.max(
+        1,
+        Math.floor(
+          rect.height *
+            window.devicePixelRatio,
+        ),
+      )
 
     ctx.setTransform(
-      devicePixelRatio,
+      window.devicePixelRatio,
       0,
       0,
-      devicePixelRatio,
+      window.devicePixelRatio,
       0,
       0,
     )
 
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
+    ctx.lineCap =
+      'round'
 
-    if (oldCanvas.width && oldCanvas.height) {
+    ctx.lineJoin =
+      'round'
+
+    if (
+      oldCanvas.width &&
+      oldCanvas.height
+    ) {
       ctx.drawImage(
         oldCanvas,
         0,
@@ -663,63 +1070,127 @@ function setupCanvas() {
 
   resize()
 
-  window.addEventListener('resize', resize)
+  window.addEventListener(
+    'resize',
+    resize,
+  )
 
-  function position(event: PointerEvent) {
-    const rect = canvas.getBoundingClientRect()
+  const position = (
+    event: PointerEvent,
+  ) => {
+    const rect =
+      canvas.getBoundingClientRect()
 
     return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
+      x:
+        event.clientX -
+        rect.left,
+
+      y:
+        event.clientY -
+        rect.top,
     }
   }
 
-  canvas.addEventListener('pointerdown', (event) => {
-    if (!currentWord || roundFinished) return
+  canvas.addEventListener(
+    'pointerdown',
+    (event) => {
+      if (
+        drawerId !== playerId ||
+        roundFinished
+      ) {
+        return
+      }
 
-    state.drawing = true
+      state.drawing = true
 
-    const point = position(event)
+      const point =
+        position(event)
 
-    state.lastX = point.x
-    state.lastY = point.y
+      state.lastX =
+        point.x
 
-    canvas.setPointerCapture(event.pointerId)
+      state.lastY =
+        point.y
 
-    drawDot(ctx, point.x, point.y)
-  })
+      canvas.setPointerCapture(
+        event.pointerId,
+      )
 
-  canvas.addEventListener('pointermove', (event) => {
-    if (!state.drawing || roundFinished) return
+      drawDot(
+        ctx,
+        point.x,
+        point.y,
+      )
+    },
+  )
 
-    const point = position(event)
+  canvas.addEventListener(
+    'pointermove',
+    (event) => {
+      if (
+        !state.drawing ||
+        drawerId !== playerId ||
+        roundFinished
+      ) {
+        return
+      }
 
-    ctx.beginPath()
-    ctx.moveTo(state.lastX, state.lastY)
-    ctx.lineTo(point.x, point.y)
+      const point =
+        position(event)
 
-    ctx.strokeStyle = state.brushColor
-    ctx.lineWidth = state.brushSize
+      drawLine(
+        ctx,
+        state.lastX,
+        state.lastY,
+        point.x,
+        point.y,
+        state.brushColor,
+        state.brushSize,
+      )
 
-    ctx.stroke()
+      send({
+        type: 'draw',
+        x: point.x,
+        y: point.y,
+        lastX: state.lastX,
+        lastY: state.lastY,
+        color: state.brushColor,
+        size: state.brushSize,
+      })
 
-    state.lastX = point.x
-    state.lastY = point.y
-  })
+      state.lastX =
+        point.x
+
+      state.lastY =
+        point.y
+    },
+  )
 
   const stop = () => {
     state.drawing = false
   }
 
-  canvas.addEventListener('pointerup', stop)
-  canvas.addEventListener('pointercancel', stop)
-  canvas.addEventListener('pointerleave', stop)
+  canvas.addEventListener(
+    'pointerup',
+    stop,
+  )
+
+  canvas.addEventListener(
+    'pointercancel',
+    stop,
+  )
+
+  canvas.addEventListener(
+    'pointerleave',
+    stop,
+  )
 
   function drawDot(
     context: CanvasRenderingContext2D,
     x: number,
     y: number,
-  ) {
+  ): void {
     context.beginPath()
 
     context.arc(
@@ -730,36 +1201,118 @@ function setupCanvas() {
       Math.PI * 2,
     )
 
-    context.fillStyle = state.brushColor
+    context.fillStyle =
+      state.brushColor
+
     context.fill()
   }
 }
 
-function setupTools() {
+function drawLine(
+  ctx: CanvasRenderingContext2D,
+  lastX: number,
+  lastY: number,
+  x: number,
+  y: number,
+  color: string,
+  size: number,
+): void {
+  ctx.beginPath()
+
+  ctx.moveTo(
+    lastX,
+    lastY,
+  )
+
+  ctx.lineTo(
+    x,
+    y,
+  )
+
+  ctx.strokeStyle =
+    color
+
+  ctx.lineWidth =
+    size
+
+  ctx.lineCap =
+    'round'
+
+  ctx.lineJoin =
+    'round'
+
+  ctx.stroke()
+}
+
+function drawRemoteLine(
+  message: Extract<
+    ServerMessage,
+    { type: 'draw' }
+  >,
+): void {
+  const canvas =
+    document.querySelector<HTMLCanvasElement>(
+      '#canvas',
+    )
+
+  if (!canvas) {
+    return
+  }
+
+  const ctx =
+    canvas.getContext('2d')
+
+  if (!ctx) {
+    return
+  }
+
+  drawLine(
+    ctx,
+    message.lastX,
+    message.lastY,
+    message.x,
+    message.y,
+    message.color,
+    message.size,
+  )
+}
+
+function setupTools(): void {
   document
-    .querySelectorAll<HTMLButtonElement>('.color')
+    .querySelectorAll<HTMLButtonElement>(
+      '.color',
+    )
     .forEach((button) => {
-      button.addEventListener('click', () => {
-        document
-          .querySelectorAll('.color')
-          .forEach((item) =>
-            item.classList.remove('active'),
+      button.addEventListener(
+        'click',
+        () => {
+          document
+            .querySelectorAll('.color')
+            .forEach((item) => {
+              item.classList.remove(
+                'active',
+              )
+            })
+
+          button.classList.add(
+            'active',
           )
 
-        button.classList.add('active')
+          state.brushColor =
+            button.dataset.color ??
+            '#171721'
 
-        state.brushColor =
-          button.dataset.color ?? '#171721'
+          const picker =
+            document.querySelector<HTMLInputElement>(
+              '#custom-color',
+            )
 
-        const picker =
-          document.querySelector<HTMLInputElement>(
-            '#custom-color',
-          )
-
-        if (picker) {
-          picker.value = state.brushColor
-        }
-      })
+          if (picker) {
+            picker.value =
+              state.brushColor
+          }
+        },
+      )
     })
 
   const customColor =
@@ -767,30 +1320,62 @@ function setupTools() {
       '#custom-color',
     )
 
-  customColor?.addEventListener('input', () => {
-    state.brushColor = customColor.value
+  customColor?.addEventListener(
+    'input',
+    () => {
+      state.brushColor =
+        customColor.value
 
-    document
-      .querySelectorAll('.color')
-      .forEach((item) =>
-        item.classList.remove('active'),
-      )
-  })
-
-  document
-    .querySelector<HTMLInputElement>('#brush-size')!
-    .addEventListener('input', (event) => {
-      state.brushSize = Number(
-        (event.target as HTMLInputElement).value,
-      )
-    })
+      document
+        .querySelectorAll('.color')
+        .forEach((item) => {
+          item.classList.remove(
+            'active',
+          )
+        })
+    },
+  )
 
   document
-    .querySelector<HTMLButtonElement>('#clear')!
-    .addEventListener('click', clearCanvas)
+    .querySelector<HTMLInputElement>(
+      '#brush-size',
+    )!
+    .addEventListener(
+      'input',
+      (event) => {
+        state.brushSize =
+          Number(
+            (
+              event.target as
+                HTMLInputElement
+            ).value,
+          )
+      },
+    )
+
+  document
+    .querySelector<HTMLButtonElement>(
+      '#clear',
+    )!
+    .addEventListener(
+      'click',
+      () => {
+        if (
+          drawerId !== playerId
+        ) {
+          return
+        }
+
+        clearCanvas()
+
+        send({
+          type: 'clear-canvas',
+        })
+      },
+    )
 }
 
-function setupChat() {
+function setupChat(): void {
   const form =
     document.querySelector<HTMLFormElement>(
       '#guess-form',
@@ -801,56 +1386,81 @@ function setupChat() {
       '#guess',
     )!
 
-  form.addEventListener('submit', (event) => {
-  event.preventDefault()
+  form.addEventListener(
+    'submit',
+    (event) => {
+      event.preventDefault()
 
-  // Der Zeichner darf während seiner Runde nicht raten.
-  if (drawerId === playerId) {
-    showToast('Du zeichnest gerade! 🎨')
-    return
-  }
+      if (
+        drawerId === playerId
+      ) {
+        showToast(
+          'Du zeichnest gerade! 🎨',
+        )
+        return
+      }
 
-  if (!currentWord || roundFinished) return
+      const guess =
+        input.value.trim()
 
-  const guess = input.value.trim()
+      if (!guess) {
+        return
+      }
 
-  if (!guess) return
+      send({
+        type: 'guess',
+        text: guess,
+      })
 
-  addMessage(playerName, guess)
-
-  if (
-    normalize(guess) ===
-    normalize(currentWord)
-  ) {
-    addCorrectAnswer()
-  }
-
-  input.value = ''
-  input.focus()
-})
+      input.value = ''
+      input.focus()
+    },
+  )
 }
 
-function normalize(value: string) {
+function normalize(
+  value: string,
+): string {
   return value
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\p{L}\p{N}]/gu, '')
+    .replace(
+      /[\u0300-\u036f]/g,
+      '',
+    )
+    .replace(
+      /[^\p{L}\p{N}]/gu,
+      '',
+    )
 }
 
-function addMessage(name: string, text: string) {
+function addMessage(
+  name: string,
+  text: string,
+): void {
   const messages =
     document.querySelector<HTMLDivElement>(
       '#messages',
-    )!
+    )
 
-  const item = document.createElement('div')
+  if (!messages) {
+    return
+  }
 
-  item.className = 'message'
+  const item =
+    document.createElement('div')
+
+  item.className =
+    'message'
 
   item.innerHTML = `
-    <strong>${escapeHtml(name)}:</strong>
-    <span>${escapeHtml(text)}</span>
+    <strong>
+      ${escapeHtml(name)}:
+    </strong>
+
+    <span>
+      ${escapeHtml(text)}
+    </span>
   `
 
   messages.appendChild(item)
@@ -859,80 +1469,44 @@ function addMessage(name: string, text: string) {
     messages.scrollHeight
 }
 
-function addCorrectAnswer() {
-  if (roundFinished) return
-
-  const player = players.find(
-    (item) => item.id === playerId,
-  )
-
-  if (!player) return
-
-  if (correctGuesses.includes(player.id)) {
-    showToast('Du hast das bereits erraten!')
-    return
-  }
-
-  /*
-   * Platz 1 = 1000
-   * Platz 2 = 800
-   * Platz 3 = 600
-   * Platz 4 = 400
-   * usw.
-   *
-   * Damit ist die Reihenfolge direkt relevant.
-   */
-  const placement = correctGuesses.length
-
-  const points = Math.max(
-    200,
-    1000 - placement * 200,
-  )
-
-  correctGuesses.push(player.id)
-
-  player.score += points
-
+function addCorrectMessage(
+  name: string,
+  placement: number,
+  points: number,
+): void {
   const messages =
     document.querySelector<HTMLDivElement>(
       '#messages',
-    )!
+    )
 
-  const item = document.createElement('div')
+  if (!messages) {
+    return
+  }
 
-  item.className = 'correct-message'
+  const item =
+    document.createElement('div')
+
+  item.className =
+    'correct-message'
 
   item.textContent =
-    `🎉 ${playerName} ist Platz ${placement + 1}! +${points} Punkte`
+    `🎉 ${name} ist Platz ${placement}! +${points} Punkte`
 
   messages.appendChild(item)
 
   messages.scrollTop =
     messages.scrollHeight
-
-  renderPlayers()
-
-  showToast(
-    `Richtig! Platz ${placement + 1} · +${points}`,
-  )
-
-  /*
-   * Im echten Multiplayer beendet der Server
-   * die Runde erst, wenn alle möglichen Spieler
-   * geraten haben oder die Zeit abgelaufen ist.
-   *
-   * Für die jetzige Version lassen wir den Timer
-   * weiterlaufen.
-   */
 }
 
-function renderPlayers() {
+function renderPlayers(): void {
   const container =
     document.querySelector<HTMLDivElement>(
       '#players',
     )
 
-  if (!container) return
+  if (!container) {
+    return
+  }
 
   const count =
     document.querySelector<HTMLSpanElement>(
@@ -944,63 +1518,138 @@ function renderPlayers() {
       String(players.length)
   }
 
-  container.innerHTML = [...players]
-    .sort((a, b) => b.score - a.score)
-    .map(
-      (player, index) => `
-        <div class="player">
+  container.innerHTML =
+    [...players]
+      .sort(
+        (a, b) =>
+          b.score - a.score,
+      )
+      .map(
+        (player, index) => `
+          <div class="player">
 
-          <div
-            class="avatar"
-            style="background:${player.color}"
-          >
-            ${escapeHtml(
-              player.name.charAt(0).toUpperCase(),
-            )}
+            <div
+              class="avatar"
+              style="background:${escapeHtml(player.color)}"
+            >
+              ${escapeHtml(
+                player.name
+                  .charAt(0)
+                  .toUpperCase(),
+              )}
+            </div>
+
+            <div class="player-info">
+
+              <strong>
+                ${escapeHtml(
+                  player.name,
+                )}
+
+                ${
+                  player.id === playerId
+                    ? '<small>DU</small>'
+                    : ''
+                }
+              </strong>
+
+              <span>
+                ${
+                  player.id === drawerId
+                    ? '✏️ zeichnet'
+                    : '🎯 rät'
+                }
+              </span>
+
+            </div>
+
+            <div class="score">
+              ${player.score}
+            </div>
+
+            ${
+              index === 0
+                ? '<div class="rank">👑</div>'
+                : ''
+            }
+
           </div>
-
-          <div class="player-info">
-
-            <strong>
-              ${escapeHtml(player.name)}
-
-              ${
-                player.id === playerId
-                  ? '<small>DU</small>'
-                  : ''
-              }
-            </strong>
-
-            <span>
-              ${
-                player.id === drawerId
-                  ? '✏️ zeichnet'
-                  : '🎯 rät'
-              }
-            </span>
-
-          </div>
-
-          <div class="score">
-            ${player.score}
-          </div>
-
-          ${
-            index === 0
-              ? '<div class="rank">👑</div>'
-              : ''
-          }
-
-        </div>
-      `,
-    )
-    .join('')
+        `,
+      )
+      .join('')
 }
 
-function startRound() {
-  clearInterval(timer)
+function updateDrawer(): void {
+  const drawer =
+    players.find(
+      (player) =>
+        player.id === drawerId,
+    )
 
-  timeLeft = 60
+  const element =
+    document.querySelector<HTMLElement>(
+      '#drawer-name',
+    )
+
+  if (element) {
+    element.textContent =
+      drawer?.name ??
+      'Unbekannt'
+  }
+
+  const input =
+    document.querySelector<HTMLInputElement>(
+      '#guess',
+    )
+
+  const button =
+    document.querySelector<HTMLButtonElement>(
+      '#guess-form button',
+    )
+
+  const isDrawer =
+    drawerId === playerId
+
+  if (input) {
+    input.disabled =
+      isDrawer
+
+    input.placeholder =
+      isDrawer
+        ? 'Du zeichnest gerade'
+        : 'Was ist das?'
+  }
+
+  if (button) {
+    button.disabled =
+      isDrawer
+  }
+}
+
+function updateWord(): void {
+  const element =
+    document.querySelector<HTMLElement>(
+      '#word',
+    )
+
+  if (!element) {
+    return
+  }
+
+  if (
+    drawerId === playerId &&
+    currentWord
+  ) {
+    element.textContent =
+      currentWord
+  } else {
+    element.textContent =
+      '???'
+  }
+}
+
+function startRoundTimer(): void {
+  clearInterval(timer)
 
   const timerElement =
     document.querySelector<HTMLDivElement>(
@@ -1008,43 +1657,51 @@ function startRound() {
     )
 
   if (timerElement) {
-    timerElement.textContent = '60'
+    timerElement.textContent =
+      String(timeLeft)
   }
 
-  timer = window.setInterval(() => {
-    timeLeft--
+  timer =
+    window.setInterval(() => {
+      timeLeft =
+        Math.max(
+          0,
+          timeLeft - 1,
+        )
 
-    if (timerElement) {
-      timerElement.textContent =
-        String(Math.max(0, timeLeft))
-    }
-
-    if (timeLeft <= 0) {
-      finishRound()
-    }
-  }, 1000)
+      if (timerElement) {
+        timerElement.textContent =
+          String(timeLeft)
+      }
+    }, 1000)
 }
 
-function finishRound() {
-  if (roundFinished) return
-
-  roundFinished = true
-
-  clearInterval(timer)
-
-  const timerElement =
-    document.querySelector<HTMLDivElement>(
-      '#timer',
+function clearCanvas(): void {
+  const canvas =
+    document.querySelector<HTMLCanvasElement>(
+      '#canvas',
     )
 
-  if (timerElement) {
-    timerElement.textContent = '0'
+  if (!canvas) {
+    return
   }
 
-  showRoundResults()
+  const ctx =
+    canvas.getContext('2d')
+
+  if (!ctx) {
+    return
+  }
+
+  ctx.clearRect(
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  )
 }
 
-function showRoundResults() {
+function showRoundResults(): void {
   const modal =
     document.querySelector<HTMLDivElement>(
       '#round-result',
@@ -1060,35 +1717,40 @@ function showRoundResults() {
       '#result-players',
     )
 
-  const countdown =
-    document.querySelector<HTMLElement>(
-      '#result-countdown',
-    )
-
-  if (!modal || !word || !resultPlayers || !countdown) {
+  if (
+    !modal ||
+    !word ||
+    !resultPlayers
+  ) {
     return
   }
 
-  word.textContent = currentWord
+  word.textContent =
+    currentWord
 
-  const rankedPlayers = [...players].sort(
-    (a, b) => b.score - a.score,
-  )
+  const rankedPlayers =
+    [...players].sort(
+      (a, b) =>
+        b.score - a.score,
+    )
 
   resultPlayers.innerHTML =
     rankedPlayers
       .map((player) => {
         const guessedIndex =
-          correctGuesses.indexOf(player.id)
-
-        let roundPoints = 0
-
-        if (guessedIndex >= 0) {
-          roundPoints = Math.max(
-            200,
-            1000 - guessedIndex * 200,
+          correctGuesses.indexOf(
+            player.id,
           )
-        }
+
+        const roundPoints =
+          guessedIndex >= 0
+            ? Math.max(
+                200,
+                1000 -
+                  guessedIndex *
+                    200,
+              )
+            : 0
 
         return `
           <div class="result-player">
@@ -1103,13 +1765,18 @@ function showRoundResults() {
 
             <div class="result-avatar">
               ${escapeHtml(
-                player.name.charAt(0).toUpperCase(),
+                player.name
+                  .charAt(0)
+                  .toUpperCase(),
               )}
             </div>
 
             <div class="result-name">
+
               <strong>
-                ${escapeHtml(player.name)}
+                ${escapeHtml(
+                  player.name,
+                )}
               </strong>
 
               <span>
@@ -1119,6 +1786,7 @@ function showRoundResults() {
                     : 'Nicht erraten'
                 }
               </span>
+
             </div>
 
             <div class="result-score">
@@ -1130,78 +1798,45 @@ function showRoundResults() {
       })
       .join('')
 
-  modal.classList.remove('hidden')
-
-  let seconds = 6
-
-  countdown.textContent =
-    String(seconds)
-
-  const resultTimer =
-    window.setInterval(() => {
-      seconds--
-
-      countdown.textContent =
-        String(Math.max(0, seconds))
-
-      if (seconds <= 0) {
-        clearInterval(resultTimer)
-        nextRound()
-      }
-    }, 1000)
-}
-
-function nextRound() {
-  round++
-
-  currentWord = ''
-
-  correctGuesses = []
-
-  roundFinished = false
-
-  clearCanvas()
-
-  renderGame()
-
-  showWordChoice()
-}
-
-function clearCanvas() {
-  const canvas =
-    document.querySelector<HTMLCanvasElement>(
-      '#canvas',
-    )
-
-  if (!canvas) return
-
-  const ctx =
-    canvas.getContext('2d')
-
-  if (!ctx) return
-
-  ctx.clearRect(
-    0,
-    0,
-    canvas.width,
-    canvas.height,
+  modal.classList.remove(
+    'hidden',
   )
 }
 
-function showToast(text: string) {
-  const toast =
+function showToast(
+  text: string,
+): void {
+  let toast =
     document.querySelector<HTMLDivElement>(
       '#toast',
     )
 
-  if (!toast) return
+  if (!toast) {
+    toast =
+      document.createElement('div')
 
-  toast.textContent = text
+    toast.id =
+      'toast'
 
-  toast.classList.add('visible')
+    toast.className =
+      'toast'
+
+    document.body.appendChild(
+      toast,
+    )
+  }
+
+  toast.textContent =
+    text
+
+  toast.classList.add(
+    'visible',
+  )
 
   window.setTimeout(() => {
-    toast.classList.remove('visible')
+    toast?.classList.remove(
+      'visible',
+    )
   }, 2500)
 }
 
