@@ -73,7 +73,7 @@ function sendToServer(
   ) {
     return
   }
-
+console.log('SENDE AN SERVER:', type, data)
   socket.send(
     JSON.stringify({
       type,
@@ -694,22 +694,17 @@ function renderLobby() {
   document
   .querySelector<HTMLButtonElement>('#create-room')!
   .addEventListener('click', () => {
+    console.log('CREATE ROOM BUTTON GEDRÜCKT')
     if (!validateName()) return
 
     connectToServer()
 
-    const waitForConnection = window.setInterval(() => {
-      if (!socket || socket.readyState !== WebSocket.OPEN) {
-        return
-      }
-
-      clearInterval(waitForConnection)
-
+    setTimeout(() => {
       sendToServer('create-room', {
         playerId,
         name: playerName,
       })
-    }, 50)
+    }, 100)
   })
 
   document
