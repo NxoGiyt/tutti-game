@@ -532,6 +532,7 @@ function handleJoin(ws, message) {
 }
 
 function handleCreate(ws, message) {
+    console.log('CREATE-ROOM VOM CLIENT:', message)
   const {
     playerId,
     name,
@@ -573,6 +574,11 @@ function handleCreate(ws, message) {
   ws.roomCode = room.code
   ws.playerId = playerId
 
+  console.log(
+  'RAUM ERSTELLT:',
+  room.code,
+  playerId,
+)
     send(ws, 'room-created', {
     roomCode: room.code,
     playerId,
