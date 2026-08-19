@@ -63,6 +63,493 @@ let players: Player[] = []
 let socket: WebSocket | null = null
 const SERVER_URL = 'wss://stumblesketch-server.onrender.com/ws'
 
+function sendToServer(
+  type: string,
+  data: Record<string, unknown> = {},
+) {
+  if (
+    !socket ||
+    socket.readyState !== WebSocket.OPEN
+  ) {
+    return
+  }
+
+  socket.send(
+    JSON.stringify({
+      type,
+      ...data,
+    }),
+  )
+}
+
+function connectToServer() {
+  if (socket) return
+
+  socket = new WebSocket(SERVER_URL)
+
+  socket.addEventListener('open', () => {
+    console.log('Mit Multiplayer-Server verbunden.')
+  })
+
+  socket.addEventListener('message', (event) => {
+    try {
+      const message = JSON.parse(event.data)
+
+      if (message.type === 'room-created') {
+  roomCode = message.roomCode
+  return
+}
+
+if (message.type === 'joined') {
+  roomCode = message.roomCode
+  return
+}
+
+      if (message.type === 'players') {
+        players = message.players.map(
+          (player: Player & { isDrawer?: boolean }) => ({
+            id: player.id,
+            name: player.name,
+            score: player.score,
+            ready: player.ready,
+            color: player.color,
+          }),
+        )
+
+        const drawer =
+          message.players.find(
+            (player: Player & { isDrawer?: boolean }) =>
+              player.isDrawer,
+          )
+
+        if (drawer) {
+          drawerId = drawer.id
+        }
+
+        renderPlayers()
+        return
+      }
+
+      if (message.type === 'draw') {
+        if (message.playerId === playerId) {
+          return
+        }
+
+        drawRemoteStroke(message.data)
+        return
+      }
+
+      if (message.type === 'clear-canvas') {
+        clearCanvas(false)
+        return
+      }
+
+      if (message.type === 'chat') {
+        addMessage(
+          message.playerName,
+          message.text,
+        )
+        return
+      }
+
+      if (message.type === 'correct-guess') {
+  const player =
+    players.find(
+      (item) =>
+        item.id === message.playerId,
+    )
+
+  if (player) {
+    player.score += message.points
+  }
+
+  correctGuesses.push(
+    message.playerId,
+  )
+
+  renderPlayers()
+
+  const messages =
+    document.querySelector<HTMLDivElement>(
+      '#messages',
+    )
+
+  if (messages) {
+    const item =
+      document.createElement('div')
+
+    item.className =
+      'correct-message'
+
+    item.textContent =
+      `🎉 ${message.playerName} ist Platz ${message.position}! +${message.points} Punkte`
+
+    messages.appendChild(item)
+
+    messages.scrollTop =
+      messages.scrollHeight
+  }
+
+  if (message.playerId === playerId) {
+    showToast(
+      `Richtig! Platz ${message.position} · +${message.points}`,
+    )
+  }
+
+  return
+}
+
+      if (message.type === 'round-started') {
+  drawerId = message.drawerId
+  roundFinished = false
+  correctGuesses = []
+  timeLeft = message.timeLeft
+
+  clearCanvas(false)
+
+  const timerElement =
+    document.querySelector<HTMLDivElement>(
+      '#timer',
+    )
+
+  if (timerElement) {
+    timerElement.textContent =
+      String(timeLeft)
+  }
+
+  const wordElement =
+    document.querySelector<HTMLElement>(
+      '#word',
+    )
+
+  if (wordElement) {
+    wordElement.textContent =
+      drawerId === playerId
+        ? currentWord
+        : '???'
+  }
+
+  return
+}
+
+      if (message.type === 'round-finished') {
+  currentWord = message.word
+  roundFinished = true
+
+  clearInterval(timer)
+
+  const modal =
+    document.querySelector<HTMLDivElement>(
+      '#round-result',
+    )
+
+  const word =
+    document.querySelector<HTMLElement>(
+      '#result-word',
+    )
+
+  const resultPlayers =
+    document.querySelector<HTMLDivElement>(
+      '#result-players',
+    )
+
+  if (word) {
+    word.textContent = message.word
+  }
+
+  if (resultPlayers) {
+    resultPlayers.innerHTML =
+      message.rankings
+        .map(
+          (ranking: {
+            playerId: string
+            playerName: string
+            points: number
+            position: number
+          }) => `
+            <div class="result-player">
+
+              <div class="result-rank">
+                #${ranking.position}
+              </div>
+
+              <div class="result-avatar">
+                ${escapeHtml(
+                  ranking.playerName
+                    .charAt(0)
+                    .toUpperCase(),
+                )}
+              </div>
+
+              <div class="result-name">
+                <strong>
+                  ${escapeHtml(
+                    ranking.playerName,
+                  )}
+                </strong>
+
+                <span>
+                  +${ranking.points} Punkte
+                </span>
+              </div>
+
+            </div>
+          `,
+        )
+        .join('')
+  }
+
+  modal?.classList.remove('hidden')
+
+  return
+}
+
+      if (message.type === 'state') {
+  roomCode = message.roomCode
+  round = message.round
+  drawerId = message.drawerId
+  timeLeft = message.timeLeft
+
+  const timerElement =
+    document.querySelector<HTMLDivElement>('#timer')
+
+  if (timerElement) {
+    timerElement.textContent =
+      String(Math.max(0, timeLeft))
+  }
+
+  const roundElement =
+    document.querySelector<HTMLElement>(
+      '.round-info strong',
+    )
+
+  if (roundElement) {
+    roundElement.textContent =
+      String(round)
+  }
+
+  if (
+    message.phase === 'choosing' &&
+    drawerId === playerId &&
+    Array.isArray(message.wordChoices)
+  ) {
+    const modal =
+      document.querySelector<HTMLDivElement>(
+        '#word-choice',
+      )
+
+    const options =
+      document.querySelector<HTMLDivElement>(
+        '#word-options',
+      )
+
+    if (!modal || !options) return
+
+    modal.classList.remove('hidden')
+
+    options.innerHTML =
+      message.wordChoices
+        .map(
+          (word: string) => `
+            <button
+              class="word-option"
+              data-word="${escapeHtml(word)}"
+            >
+              <span>🎨</span>
+              <strong>${escapeHtml(word)}</strong>
+            </button>
+          `,
+        )
+        .join('')
+
+    options
+      .querySelectorAll<HTMLButtonElement>(
+        '.word-option',
+      )
+      .forEach((button) => {
+        button.addEventListener('click', () => {
+          const word = button.dataset.word
+
+          if (!word) return
+
+          currentWord = word
+
+          sendToServer('choose-word', {
+            word,
+          })
+
+          modal.classList.add('hidden')
+        })
+      })
+  }
+
+  if (message.phase === 'drawing') {
+    roundFinished = false
+
+    const resultModal =
+      document.querySelector<HTMLDivElement>(
+        '#round-result',
+      )
+
+    resultModal?.classList.add('hidden')
+
+    const wordElement =
+      document.querySelector<HTMLElement>('#word')
+
+    if (wordElement) {
+      wordElement.textContent =
+        drawerId === playerId
+          ? currentWord
+          : '???'
+    }
+
+    const drawerName =
+      document.querySelector<HTMLElement>(
+        '#drawer-name',
+      )
+
+    const drawer =
+      players.find(
+        (player) =>
+          player.id === drawerId,
+      )
+
+    if (drawerName && drawer) {
+      drawerName.textContent =
+        drawer.name
+    }
+
+    renderPlayers()
+  }
+
+  if (message.phase === 'reveal') {
+    roundFinished = true
+  }
+
+  return
+}
+
+      if (message.type === 'error') {
+        showToast(message.message)
+        return
+      }
+    } catch (error) {
+      console.error(
+        'Fehler beim Verarbeiten der Server-Nachricht:',
+        error,
+      )
+    }
+  })
+
+  socket.addEventListener('close', () => {
+    socket = null
+
+    showToast(
+      'Verbindung zum Multiplayer-Server verloren.',
+    )
+  })
+
+  socket.addEventListener('error', () => {
+    showToast(
+      'Verbindung zum Multiplayer-Server fehlgeschlagen.',
+    )
+  })
+}
+
+function handleServerMessage(
+  message: {
+    type?: string
+    [key: string]: unknown
+  },
+) {
+  console.log('SERVER:', message)
+
+  switch (message.type) {
+    case 'room-created': {
+      roomCode = String(message.roomCode ?? '')
+      renderGame()
+      showToast(`Raum ${roomCode} erstellt.`)
+      break
+    }
+
+    case 'joined': {
+      roomCode = String(message.roomCode ?? '')
+      break
+    }
+
+    case 'players': {
+      const serverPlayers = message.players
+
+      if (!Array.isArray(serverPlayers)) return
+
+      players = serverPlayers.map((player) => {
+        const data = player as {
+          id?: unknown
+          name?: unknown
+          score?: unknown
+          color?: unknown
+          ready?: unknown
+        }
+
+        return {
+          id: String(data.id ?? ''),
+          name: String(data.name ?? 'Spieler'),
+          score: Number(data.score ?? 0),
+          color: String(data.color ?? '#6c63ff'),
+          ready: Boolean(data.ready),
+        }
+      })
+
+      renderPlayers()
+      break
+    }
+
+    case 'draw': {
+      const data = message.data as {
+        x1?: number
+        y1?: number
+        x2?: number
+        y2?: number
+        color?: string
+        size?: number
+      } | undefined
+
+      if (!data) return
+
+      drawRemoteStroke(data)
+      break
+    }
+
+    case 'clear-canvas': {
+      clearCanvas()
+      break
+    }
+
+    case 'chat': {
+      const name = String(
+        message.playerName ?? 'Spieler',
+      )
+
+      const text = String(
+        message.text ?? '',
+      )
+
+      addMessage(name, text)
+      break
+    }
+
+    case 'error': {
+      showToast(
+        String(
+          message.message ?? 'Serverfehler.',
+        ),
+      )
+      break
+    }
+  }
+}
+
+
 /*
  * Spieler, die diese Runde richtig geraten haben.
  * Die Reihenfolge ist gleichzeitig die Platzierung.
@@ -205,14 +692,25 @@ function renderLobby() {
   })
 
   document
-    .querySelector<HTMLButtonElement>('#create-room')!
-    .addEventListener('click', () => {
-      if (!validateName()) return
+  .querySelector<HTMLButtonElement>('#create-room')!
+  .addEventListener('click', () => {
+    if (!validateName()) return
 
-      roomCode = generateRoomCode()
+    connectToServer()
 
-      startGame()
-    })
+    const waitForConnection = window.setInterval(() => {
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        return
+      }
+
+      clearInterval(waitForConnection)
+
+      sendToServer('create-room', {
+        playerId,
+        name: playerName,
+      })
+    }, 50)
+  })
 
   document
     .querySelector<HTMLButtonElement>('#join-room')!
@@ -220,20 +718,34 @@ function renderLobby() {
       if (!validateName()) return
 
       const code =
-        document
-          .querySelector<HTMLInputElement>('#room')!
-          .value
-          .trim()
-          .toUpperCase()
+  document
+    .querySelector<HTMLInputElement>('#room')!
+    .value
+    .trim()
+    .toUpperCase()
 
-      if (code.length !== 6) {
-        showToast('Der Raum-Code muss 6 Zeichen haben.')
-        return
-      }
+if (code.length !== 6) {
+  showToast('Der Raum-Code muss 6 Zeichen haben.')
+  return
+}
 
-      roomCode = code
+roomCode = code
 
-      startGame()
+connectToServer()
+
+const waitForConnection = window.setInterval(() => {
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    return
+  }
+
+  clearInterval(waitForConnection)
+
+  sendToServer('join-room', {
+    roomCode,
+    playerId,
+    name: playerName,
+  })
+}, 50)
     })
 }
 
@@ -272,14 +784,12 @@ function generateRoomCode() {
 }
 
 function startGame() {
-  createFakePlayers()
-
-  drawerId = playerId
   round = 1
+  roundFinished = false
+  currentWord = ''
+  correctGuesses = []
 
   renderGame()
-
-  showWordChoice()
 }
 
 function renderGame() {
@@ -531,49 +1041,26 @@ function renderGame() {
 function showWordChoice() {
   clearInterval(timer)
 
-  timeLeft = 60
-
   const modal =
-    document.querySelector<HTMLDivElement>(
-      '#word-choice',
-    )
+    document.querySelector<HTMLDivElement>('#word-choice')
 
-  const options =
-    document.querySelector<HTMLDivElement>(
-      '#word-options',
-    )
+  if (!modal) return
 
-  if (!modal || !options) return
-
-  const words = getThreeWords()
-
-  options.innerHTML = words
-    .map(
-      (word) => `
-        <button
-          class="word-option"
-          data-word="${escapeHtml(word)}"
-        >
-          <span>🎨</span>
-          <strong>${escapeHtml(word)}</strong>
-        </button>
-      `,
-    )
-    .join('')
-
-  options
-    .querySelectorAll<HTMLButtonElement>('.word-option')
-    .forEach((button) => {
-      button.addEventListener('click', () => {
-        const word = button.dataset.word
-
-        if (!word) return
-
-        selectWord(word)
-      })
-    })
+  if (drawerId !== playerId) {
+    modal.classList.add('hidden')
+    return
+  }
 
   modal.classList.remove('hidden')
+
+  const options =
+    document.querySelector<HTMLDivElement>('#word-options')
+
+  if (!options) return
+
+  options.innerHTML = ''
+
+  sendToServer('start-game')
 }
 
 function selectWord(word: string) {
@@ -595,16 +1082,62 @@ function selectWord(word: string) {
     wordElement.textContent = currentWord
   }
 
-  const timerElement =
-    document.querySelector<HTMLDivElement>('#timer')
+  sendToServer('choose-word', {
+    word,
+  })
+}
 
-  if (timerElement) {
-    timerElement.textContent = '60'
+function drawRemoteStroke(data: {
+  x1?: number
+  y1?: number
+  x2?: number
+  y2?: number
+  color?: string
+  size?: number
+}) {
+  const canvas =
+    document.querySelector<HTMLCanvasElement>(
+      '#canvas',
+    )
+
+  if (!canvas) return
+
+  const ctx =
+    canvas.getContext('2d')
+
+  if (!ctx) return
+
+  if (
+    typeof data.x1 !== 'number' ||
+    typeof data.y1 !== 'number' ||
+    typeof data.x2 !== 'number' ||
+    typeof data.y2 !== 'number'
+  ) {
+    return
   }
 
-  clearCanvas()
+  ctx.beginPath()
 
-  startRound()
+  ctx.moveTo(
+    data.x1,
+    data.y1,
+  )
+
+  ctx.lineTo(
+    data.x2,
+    data.y2,
+  )
+
+  ctx.strokeStyle =
+    data.color ?? '#171721'
+
+  ctx.lineWidth =
+    data.size ?? 7
+
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+
+  ctx.stroke()
 }
 
 function setupCanvas() {
@@ -678,7 +1211,13 @@ function setupCanvas() {
   }
 
   canvas.addEventListener('pointerdown', (event) => {
-    if (!currentWord || roundFinished) return
+  if (
+    drawerId !== playerId ||
+    !currentWord ||
+    roundFinished
+  ) {
+    return
+  }
 
     state.drawing = true
 
@@ -693,22 +1232,50 @@ function setupCanvas() {
   })
 
   canvas.addEventListener('pointermove', (event) => {
-    if (!state.drawing || roundFinished) return
+  if (!state.drawing || roundFinished) return
 
-    const point = position(event)
+  const point = position(event)
 
-    ctx.beginPath()
-    ctx.moveTo(state.lastX, state.lastY)
-    ctx.lineTo(point.x, point.y)
+  const x1 = state.lastX
+  const y1 = state.lastY
+  const x2 = point.x
+  const y2 = point.y
 
-    ctx.strokeStyle = state.brushColor
-    ctx.lineWidth = state.brushSize
+  ctx.beginPath()
 
-    ctx.stroke()
+  ctx.moveTo(
+    x1,
+    y1,
+  )
 
-    state.lastX = point.x
-    state.lastY = point.y
+  ctx.lineTo(
+    x2,
+    y2,
+  )
+
+  ctx.strokeStyle =
+    state.brushColor
+
+  ctx.lineWidth =
+    state.brushSize
+
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+
+  ctx.stroke()
+
+  sendToServer('draw', {
+    x1,
+    y1,
+    x2,
+    y2,
+    color: state.brushColor,
+    size: state.brushSize,
   })
+
+  state.lastX = x2
+  state.lastY = y2
+})
 
   const stop = () => {
     state.drawing = false
@@ -790,47 +1357,43 @@ function setupTools() {
 
   document
     .querySelector<HTMLButtonElement>('#clear')!
-    .addEventListener('click', clearCanvas)
+    .addEventListener('click', () => clearCanvas())
 }
 
 function setupChat() {
   const form =
     document.querySelector<HTMLFormElement>(
       '#guess-form',
-    )!
+    )
 
   const input =
     document.querySelector<HTMLInputElement>(
       '#guess',
-    )!
+    )
+
+  if (!form || !input) return
 
   form.addEventListener('submit', (event) => {
-  event.preventDefault()
+    event.preventDefault()
 
-  // Der Zeichner darf während seiner Runde nicht raten.
-  if (drawerId === playerId) {
-    showToast('Du zeichnest gerade! 🎨')
-    return
-  }
+    if (drawerId === playerId) {
+      showToast('Du zeichnest gerade! 🎨')
+      return
+    }
 
-  if (!currentWord || roundFinished) return
+    if (roundFinished) return
 
-  const guess = input.value.trim()
+    const guess = input.value.trim()
 
-  if (!guess) return
+    if (!guess) return
 
-  addMessage(playerName, guess)
+    sendToServer('chat', {
+      text: guess,
+    })
 
-  if (
-    normalize(guess) ===
-    normalize(currentWord)
-  ) {
-    addCorrectAnswer()
-  }
-
-  input.value = ''
-  input.focus()
-})
+    input.value = ''
+    input.focus()
+  })
 }
 
 function normalize(value: string) {
@@ -860,73 +1423,6 @@ function addMessage(name: string, text: string) {
 
   messages.scrollTop =
     messages.scrollHeight
-}
-
-function addCorrectAnswer() {
-  if (roundFinished) return
-
-  const player = players.find(
-    (item) => item.id === playerId,
-  )
-
-  if (!player) return
-
-  if (correctGuesses.includes(player.id)) {
-    showToast('Du hast das bereits erraten!')
-    return
-  }
-
-  /*
-   * Platz 1 = 1000
-   * Platz 2 = 800
-   * Platz 3 = 600
-   * Platz 4 = 400
-   * usw.
-   *
-   * Damit ist die Reihenfolge direkt relevant.
-   */
-  const placement = correctGuesses.length
-
-  const points = Math.max(
-    200,
-    1000 - placement * 200,
-  )
-
-  correctGuesses.push(player.id)
-
-  player.score += points
-
-  const messages =
-    document.querySelector<HTMLDivElement>(
-      '#messages',
-    )!
-
-  const item = document.createElement('div')
-
-  item.className = 'correct-message'
-
-  item.textContent =
-    `🎉 ${playerName} ist Platz ${placement + 1}! +${points} Punkte`
-
-  messages.appendChild(item)
-
-  messages.scrollTop =
-    messages.scrollHeight
-
-  renderPlayers()
-
-  showToast(
-    `Richtig! Platz ${placement + 1} · +${points}`,
-  )
-
-  /*
-   * Im echten Multiplayer beendet der Server
-   * die Runde erst, wenn alle möglichen Spieler
-   * geraten haben oder die Zeit abgelaufen ist.
-   *
-   * Für die jetzige Version lassen wir den Timer
-   * weiterlaufen.
-   */
 }
 
 function renderPlayers() {
@@ -1000,52 +1496,6 @@ function renderPlayers() {
     .join('')
 }
 
-function startRound() {
-  clearInterval(timer)
-
-  timeLeft = 60
-
-  const timerElement =
-    document.querySelector<HTMLDivElement>(
-      '#timer',
-    )
-
-  if (timerElement) {
-    timerElement.textContent = '60'
-  }
-
-  timer = window.setInterval(() => {
-    timeLeft--
-
-    if (timerElement) {
-      timerElement.textContent =
-        String(Math.max(0, timeLeft))
-    }
-
-    if (timeLeft <= 0) {
-      finishRound()
-    }
-  }, 1000)
-}
-
-function finishRound() {
-  if (roundFinished) return
-
-  roundFinished = true
-
-  clearInterval(timer)
-
-  const timerElement =
-    document.querySelector<HTMLDivElement>(
-      '#timer',
-    )
-
-  if (timerElement) {
-    timerElement.textContent = '0'
-  }
-
-  showRoundResults()
-}
 
 function showRoundResults() {
   const modal =
@@ -1148,29 +1598,14 @@ function showRoundResults() {
         String(Math.max(0, seconds))
 
       if (seconds <= 0) {
-        clearInterval(resultTimer)
-        nextRound()
-      }
+  clearInterval(resultTimer)
+}
     }, 1000)
 }
 
-function nextRound() {
-  round++
 
-  currentWord = ''
 
-  correctGuesses = []
-
-  roundFinished = false
-
-  clearCanvas()
-
-  renderGame()
-
-  showWordChoice()
-}
-
-function clearCanvas() {
+function clearCanvas(notifyServer = true) {
   const canvas =
     document.querySelector<HTMLCanvasElement>(
       '#canvas',
@@ -1189,6 +1624,10 @@ function clearCanvas() {
     canvas.width,
     canvas.height,
   )
+
+  if (notifyServer) {
+  sendToServer('clear-canvas')
+}
 }
 
 function showToast(text: string) {

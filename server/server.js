@@ -573,13 +573,16 @@ function handleCreate(ws, message) {
   ws.roomCode = room.code
   ws.playerId = playerId
 
-  send(ws, 'room-created', {
+    send(ws, 'room-created', {
     roomCode: room.code,
     playerId,
   })
 
   broadcastPlayers(room)
-  broadcastState(room)
+
+  // Spiel direkt starten.
+  // Dadurch kann der Ersteller bereits alleine zeichnen.
+  startGame(room)
 }
 
 function handleMessage(ws, message) {
