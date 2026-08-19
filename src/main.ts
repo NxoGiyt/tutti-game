@@ -60,6 +60,9 @@ let timer: number | undefined
 
 let players: Player[] = []
 
+let socket: WebSocket | null = null
+const SERVER_URL = 'wss://stumblesketch-server.onrender.com/ws'
+
 /*
  * Spieler, die diese Runde richtig geraten haben.
  * Die Reihenfolge ist gleichzeitig die Platzierung.
