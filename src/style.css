@@ -531,9 +531,11 @@ button {
 
 .chat-panel {
   display: flex;
-  min-height: 330px;
   flex: 1;
+  min-height: 0;
+  height: 330px;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .messages {
@@ -634,9 +636,6 @@ button {
     grid-template-columns: 1fr 1fr;
   }
 
-  .chat-panel {
-    min-height: 300px;
-  }
 }
 
 @media (max-width: 650px) {
