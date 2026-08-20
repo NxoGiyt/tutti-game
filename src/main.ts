@@ -501,34 +501,29 @@ if (message.type === 'joined') {
     renderPlayers()
   }
 
-  // RUNDEN-ENDE / 6 SEKUNDEN
   if (message.phase === 'reveal') {
-    roundFinished = true
+  roundFinished = true
 
-    const resultModal =
-      document.querySelector<HTMLDivElement>(
-        '#round-result',
-      )
+  const resultModal =
+    document.querySelector<HTMLDivElement>(
+      '#round-result',
+    )
 
-    resultModal?.classList.remove('hidden')
+  resultModal?.classList.remove('hidden')
 
-    const countdown =
-      document.querySelector<HTMLElement>(
-        '#result-countdown',
-      )
+  const countdown =
+    document.querySelector<HTMLElement>(
+      '#result-countdown',
+    )
 
-    if (countdown) {
-      countdown.textContent =
-        String(
-          Math.max(
-            0,
-            message.timeLeft ?? 6,
-          ),
-        )
-    }
+  if (countdown) {
+    countdown.textContent =
+      String(Math.max(0, message.timeLeft ?? 6))
   }
 
   return
+}
+return
 }
 
 if (message.type === 'error') {
