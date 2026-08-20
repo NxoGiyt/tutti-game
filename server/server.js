@@ -686,30 +686,21 @@ function handleMessage(ws, message) {
     return
   }
 
+  if (message.type === 'draw') {
   if (
-    message.type === 'draw'
+    room.phase !== 'drawing' ||
+    player.id !== room.drawerId
   ) {
-    if (
-      room.phase !== 'drawing' ||
-      player.id !== room.drawerId
-    ) {
-      return
-    }
-
-    broadcast(room, 'draw', {
-  playerId: player.id,
-  data: {
-    x1: message.x1,
-    y1: message.y1,
-    x2: message.x2,
-    y2: message.y2,
-    color: message.color,
-    size: message.size,
-  },
-})
-
     return
   }
+
+  broadcast(room, 'draw', {
+    playerId: player.id,
+    data: message.data,
+  })
+
+  return
+}
 
   if (
     message.type === 'clear-canvas'
