@@ -62,8 +62,6 @@ let players: Player[] = []
 
 let socket: WebSocket | null = null
 
-fetch('https://stumblesketch-server.onrender.com/').catch(() => {})
-
 const IS_DISCORD = window.location.hostname.includes('discordsays.com')
 
 const SERVER_URL = IS_DISCORD
@@ -954,7 +952,7 @@ function renderLobby() {
     )
   })
 
-  document
+ document
   .querySelector<HTMLButtonElement>('#create-room')!
   .addEventListener('click', () => {
     console.log('CREATE ROOM BUTTON GEDRÜCKT')
@@ -964,10 +962,11 @@ function renderLobby() {
     const button =
       document.querySelector<HTMLButtonElement>('#create-room')
 
-    if (button) {
-      button.disabled = true
-      button.textContent = '⏳ Server wird gestartet...'
-    }
+    if (!button) return
+
+    // Sofort deaktivieren
+    button.disabled = true
+    button.textContent = '⏳ Server wird gestartet...'
 
     connectToServer()
 
@@ -977,6 +976,8 @@ function renderLobby() {
       }
 
       clearInterval(waitForConnection)
+
+      console.log('SENDE CREATE-ROOM JETZT')
 
       sendToServer('create-room', {
         playerId,
