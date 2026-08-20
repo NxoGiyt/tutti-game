@@ -207,7 +207,7 @@ function clearRoomTimers(room) {
   }
 
   if (room.revealTimer) {
-    clearTimeout(room.revealTimer)
+    clearInterval(room.revealTimer)
     room.revealTimer = null
   }
 }
