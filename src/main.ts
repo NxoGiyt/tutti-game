@@ -61,7 +61,7 @@ let timer: number | undefined
 let players: Player[] = []
 
 let socket: WebSocket | null = null
-const SERVER_URL = 'wss://tutti-game-gamma.vercel.app/ws'
+const SERVER_URL = 'wss://stumblesketch-server.onrender.com/ws'
 
 function sendToServer(
   type: string,
