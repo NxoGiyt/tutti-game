@@ -501,6 +501,83 @@ if (message.type === 'joined') {
     renderPlayers()
   }
 
+  if (message.phase === 'choosing') {
+  const resultModal =
+    document.querySelector<HTMLDivElement>(
+      '#round-result',
+    )
+
+  resultModal?.classList.add('hidden')
+
+  const wordChoiceModal =
+    document.querySelector<HTMLDivElement>(
+      '#word-choice',
+    )
+
+  if (
+    drawerId === playerId &&
+    Array.isArray(message.wordChoices)
+  ) {
+    wordChoiceModal?.classList.remove('hidden')
+
+    const options =
+      document.querySelector<HTMLDivElement>(
+        '#word-options',
+      )
+
+    const choiceTimer =
+      document.querySelector<HTMLElement>(
+        '#word-choice-timer',
+      )
+
+    if (choiceTimer) {
+      choiceTimer.textContent =
+        String(Math.max(0, message.timeLeft ?? 8))
+    }
+
+    if (options) {
+      options.innerHTML =
+        message.wordChoices
+          .map(
+            (word: string) => `
+              <button
+                class="word-option"
+                data-word="${escapeHtml(word)}"
+              >
+                <span>🎨</span>
+                <strong>${escapeHtml(word)}</strong>
+              </button>
+            `,
+          )
+          .join('')
+
+      options
+        .querySelectorAll<HTMLButtonElement>(
+          '.word-option',
+        )
+        .forEach((button) => {
+          button.addEventListener('click', () => {
+            const word = button.dataset.word
+
+            if (!word) return
+
+            currentWord = word
+
+            sendToServer('choose-word', {
+              word,
+            })
+
+            wordChoiceModal?.classList.add('hidden')
+          })
+        })
+    }
+  } else {
+    wordChoiceModal?.classList.add('hidden')
+  }
+
+  return
+}
+
   if (message.phase === 'reveal') {
   roundFinished = true
 
