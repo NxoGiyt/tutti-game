@@ -506,14 +506,18 @@ function handleJoin(ws, message) {
     ws.playerId = playerId
 
     send(ws, 'joined', {
-      roomCode: code,
-      playerId,
-    })
+  roomCode: code,
+  playerId,
+})
 
-    broadcastPlayers(room)
-    broadcastState(room)
+broadcastPlayers(room)
+broadcastState(room)
 
-    if (room.phase === 'drawing' && room.drawHistory.length > 0) {
+if (
+  room.phase === 'drawing' &&
+  room.drawerId &&
+  room.drawHistory.length > 0
+) {
   send(ws, 'draw-history', {
     strokes: room.drawHistory,
   })
@@ -540,13 +544,18 @@ function handleJoin(ws, message) {
   ws.playerId = playerId
 
   send(ws, 'joined', {
-    roomCode: code,
-    playerId,
-  })
+  roomCode: code,
+  playerId,
+})
 
-  broadcastPlayers(room)
-  broadcastState(room)
-  if (room.phase === 'drawing' && room.drawHistory.length > 0) {
+broadcastPlayers(room)
+broadcastState(room)
+
+if (
+  room.phase === 'drawing' &&
+  room.drawerId &&
+  room.drawHistory.length > 0
+) {
   send(ws, 'draw-history', {
     strokes: room.drawHistory,
   })

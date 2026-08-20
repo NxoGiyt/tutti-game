@@ -165,9 +165,13 @@ if (message.type === 'joined') {
 if (message.type === 'draw-history') {
   if (!Array.isArray(message.strokes)) return
 
-  for (const stroke of message.strokes) {
-    drawRemoteStroke(stroke)
-  }
+  const drawHistory = message.strokes
+
+  requestAnimationFrame(() => {
+    for (const stroke of drawHistory) {
+      drawRemoteStroke(stroke)
+    }
+  })
 
   return
 }

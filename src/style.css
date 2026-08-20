@@ -236,6 +236,10 @@ button {
 
 .game {
   min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .topbar {
@@ -310,6 +314,9 @@ button {
   width: min(1500px, 100%);
   margin: auto;
   padding: 18px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .main-column {
@@ -533,7 +540,6 @@ button {
   display: flex;
   flex: 1;
   min-height: 0;
-  height: 330px;
   flex-direction: column;
   overflow: hidden;
 }
