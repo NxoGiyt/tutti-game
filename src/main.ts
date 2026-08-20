@@ -161,6 +161,17 @@ if (message.type === 'joined') {
         return
       }
 
+
+if (message.type === 'draw-history') {
+  if (!Array.isArray(message.strokes)) return
+
+  for (const stroke of message.strokes) {
+    drawRemoteStroke(stroke)
+  }
+
+  return
+}
+
       if (message.type === 'clear-canvas') {
         clearCanvas(false)
         return

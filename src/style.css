@@ -436,9 +436,9 @@ button {
 
 .sidebar {
   display: flex;
-  min-width: 0;
+  min-height: 0;
   flex-direction: column;
-  gap: 14px;
+  overflow: hidden;
 }
 
 .panel {
@@ -631,10 +631,6 @@ button {
     grid-template-columns: 1fr;
   }
 
-  .sidebar {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
 
 }
 
@@ -692,9 +688,6 @@ button {
     margin-left: 0;
   }
 
-  .sidebar {
-    display: flex;
-  }
 }
 
 /* ================================

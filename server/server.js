@@ -193,6 +193,7 @@ function createRoom() {
 
     guessed: new Set(),
     guessOrder: [],
+    drawHistory: [],
   }
 
   rooms.set(code, room)
@@ -234,6 +235,7 @@ function startChoosing(room) {
 
   room.phase = 'choosing'
   room.word = null
+  room.drawHistory = []
   room.wordChoices = randomWords(3)
   room.timeLeft = 8
   room.guessed.clear()
@@ -511,6 +513,12 @@ function handleJoin(ws, message) {
     broadcastPlayers(room)
     broadcastState(room)
 
+    if (room.phase === 'drawing' && room.drawHistory.length > 0) {
+  send(ws, 'draw-history', {
+    strokes: room.drawHistory,
+  })
+}
+
     return
   }
 
@@ -538,6 +546,11 @@ function handleJoin(ws, message) {
 
   broadcastPlayers(room)
   broadcastState(room)
+  if (room.phase === 'drawing' && room.drawHistory.length > 0) {
+  send(ws, 'draw-history', {
+    strokes: room.drawHistory,
+  })
+}
 }
 
 function handleCreate(ws, message) {
@@ -590,9 +603,6 @@ function handleCreate(ws, message) {
   })
 
   broadcastPlayers(room)
-
-  // Spiel direkt starten.
-  // Dadurch kann der Ersteller bereits alleine zeichnen.
   startGame(room)
 }
 
@@ -703,6 +713,8 @@ function handleMessage(ws, message) {
     return
   }
 
+  room.drawHistory.push(message.data)
+
   broadcast(room, 'draw', {
     playerId: player.id,
     data: message.data,
@@ -719,9 +731,12 @@ function handleMessage(ws, message) {
     return
   }
 
+  room.drawHistory = []
+
   broadcast(room, 'clear-canvas')
+
   return
-  }
+}
 }
 
 function normalize(value) {
