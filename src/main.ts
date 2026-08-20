@@ -114,11 +114,9 @@ function connectToServer() {
 
 if (message.type === 'joined') {
   roomCode = String(message.roomCode ?? '')
-
   console.log('RAUM BEIGETRETEN:', roomCode)
 
-  startGame()
-
+  renderGame()
   return
 }
 
@@ -344,6 +342,14 @@ if (message.type === 'joined') {
     roundElement.textContent =
       String(round)
   }
+  const wordChoiceModal =
+  document.querySelector<HTMLDivElement>('#word-choice')
+
+if (wordChoiceModal) {
+  if (message.phase === 'choosing' && drawerId !== playerId) {
+    wordChoiceModal.classList.add('hidden')
+  }
+}
 
   if (
     message.phase === 'choosing' &&
@@ -401,43 +407,42 @@ if (message.type === 'joined') {
   }
 
   if (message.phase === 'drawing') {
-    roundFinished = false
+  roundFinished = false
 
-    const resultModal =
-      document.querySelector<HTMLDivElement>(
-        '#round-result',
-      )
+  const wordChoiceModal =
+    document.querySelector<HTMLDivElement>('#word-choice')
 
-    resultModal?.classList.add('hidden')
+  wordChoiceModal?.classList.add('hidden')
 
-    const wordElement =
-      document.querySelector<HTMLElement>('#word')
+  const resultModal =
+    document.querySelector<HTMLDivElement>('#round-result')
 
-    if (wordElement) {
-      wordElement.textContent =
-        drawerId === playerId
-          ? currentWord
-          : '???'
-    }
+  resultModal?.classList.add('hidden')
 
-    const drawerName =
-      document.querySelector<HTMLElement>(
-        '#drawer-name',
-      )
+  const wordElement =
+    document.querySelector<HTMLElement>('#word')
 
-    const drawer =
-      players.find(
-        (player) =>
-          player.id === drawerId,
-      )
-
-    if (drawerName && drawer) {
-      drawerName.textContent =
-        drawer.name
-    }
-
-    renderPlayers()
+  if (wordElement) {
+    wordElement.textContent =
+      drawerId === playerId
+        ? currentWord
+        : '???'
   }
+
+  const drawerName =
+    document.querySelector<HTMLElement>('#drawer-name')
+
+  const drawer =
+    players.find(
+      (player) => player.id === drawerId,
+    )
+
+  if (drawerName && drawer) {
+    drawerName.textContent = drawer.name
+  }
+
+  renderPlayers()
+}
 
   if (message.phase === 'reveal') {
     roundFinished = true
