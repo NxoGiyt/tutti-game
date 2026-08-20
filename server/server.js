@@ -390,9 +390,23 @@ function finishRound(room) {
   broadcastState(room)
   broadcastPlayers(room)
 
-  room.revealTimer = setTimeout(() => {
-    nextRound(room)
-  }, 6000)
+  room.revealTimer = setInterval(() => {
+    room.timeLeft = Math.max(
+      0,
+      room.timeLeft - 1,
+    )
+
+    broadcastState(room)
+
+    if (room.timeLeft <= 0) {
+      clearRoomTimers(room)
+
+      room.word = null
+      room.wordChoices = []
+
+      nextRound(room)
+    }
+  }, 1000)
 }
 
 function nextRound(room) {
@@ -416,15 +430,20 @@ function nextRound(room) {
     (currentIndex + 1) %
     playerIds.length
 
+  // NÄCHSTER ZEICHNER
   room.drawerId =
     playerIds[nextIndex]
 
   room.round++
 
-  // ALTES WORT SOFORT LÖSCHEN
+  // ALLES AUS DER ALTEN RUNDE LÖSCHEN
   room.word = null
   room.wordChoices = []
+  room.timeLeft = 8
+  room.guessed.clear()
+  room.guessOrder = []
 
+  // NEUE WORTAUSWAHL
   startChoosing(room)
 }
 
@@ -706,7 +725,7 @@ function handleMessage(ws, message) {
   ) {
     if (
       room.phase !== 'drawing' ||
-      player.id !== room.drawerId
+      player.id !== room.drawerIdroom.drawerId
     ) {
       return
     }
