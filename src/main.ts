@@ -61,7 +61,14 @@ let timer: number | undefined
 let players: Player[] = []
 
 let socket: WebSocket | null = null
-const SERVER_URL = 'wss://stumblesketch-server.onrender.com/ws'
+
+fetch('https://stumblesketch-server.onrender.com/').catch(() => {})
+
+const IS_DISCORD = window.location.hostname.includes('discordsays.com')
+
+const SERVER_URL = IS_DISCORD
+  ? `wss://${window.location.hostname}/.proxy/ws/ws`
+  : 'wss://stumblesketch-server.onrender.com/ws'
 
 function sendToServer(
   type: string,
