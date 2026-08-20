@@ -98,11 +98,17 @@ function connectToServer() {
       if (message.type === 'room-created') {
   roomCode = String(message.roomCode ?? '')
 
-  console.log('RAUM ERHALTEN:', roomCode)
+  const button =
+    document.querySelector<HTMLButtonElement>('#create-room')
 
+  if (button) {
+    button.disabled = false
+    button.textContent = '🎮 Raum erstellen'
+  }
+
+  console.log('RAUM ERHALTEN:', roomCode)
   renderGame()
   showToast(`Raum ${roomCode} erstellt.`)
-
   return
 }
 
@@ -706,22 +712,31 @@ function renderLobby() {
   .querySelector<HTMLButtonElement>('#create-room')!
   .addEventListener('click', () => {
     console.log('CREATE ROOM BUTTON GEDRÜCKT')
+
     if (!validateName()) return
+
+    const button =
+      document.querySelector<HTMLButtonElement>('#create-room')
+
+    if (button) {
+      button.disabled = true
+      button.textContent = '⏳ Server wird gestartet...'
+    }
 
     connectToServer()
 
-const waitForConnection = window.setInterval(() => {
-  if (!socket || socket.readyState !== WebSocket.OPEN) {
-    return
-  }
+    const waitForConnection = window.setInterval(() => {
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        return
+      }
 
-  clearInterval(waitForConnection)
+      clearInterval(waitForConnection)
 
-  sendToServer('create-room', {
-    playerId,
-    name: playerName,
-  })
-}, 50)
+      sendToServer('create-room', {
+        playerId,
+        name: playerName,
+      })
+    }, 50)
   })
 
   document
