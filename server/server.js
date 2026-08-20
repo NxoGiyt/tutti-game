@@ -243,22 +243,26 @@ function startChoosing(room) {
   broadcastPlayers(room)
 
   room.timer = setInterval(() => {
-    room.timeLeft = Math.max(0, room.timeLeft - 1)
+  room.timeLeft = Math.max(0, room.timeLeft - 1)
 
-    broadcastState(room)
+  broadcastState(room)
 
-    if (room.timeLeft <= 0) {
-      clearRoomTimers(room)
+  if (room.timeLeft <= 0) {
+    clearRoomTimers(room)
 
-      const fallback = room.wordChoices[0]
+    const skippedPlayer =
+      room.players.get(room.drawerId)
 
-      chooseWord(
-        room,
-        room.drawerId,
-        fallback,
-      )
-    }
-  }, 1000)
+    const skippedName =
+      skippedPlayer?.name ?? 'Spieler'
+
+    broadcast(room, 'player-skipped', {
+      playerName: skippedName,
+    })
+
+    nextRound(room)
+  }
+}, 1000)
 }
 
 function chooseWord(room, playerId, word) {

@@ -530,6 +530,16 @@ if (message.type === 'joined') {
         '#word-choice-timer',
       )
 
+      if (choiceTimer) {
+  choiceTimer.textContent =
+    String(
+      Math.max(
+        0,
+        message.timeLeft ?? 8,
+      ),
+    )
+}
+
     if (choiceTimer) {
       choiceTimer.textContent =
         String(Math.max(0, message.timeLeft ?? 8))
@@ -603,10 +613,35 @@ if (message.type === 'joined') {
 return
 }
 
+if (message.type === 'player-skipped') {
+  const messages =
+    document.querySelector<HTMLDivElement>(
+      '#messages',
+    )
+
+  if (messages) {
+    const item =
+      document.createElement('div')
+
+    item.className = 'system-message'
+
+    item.textContent =
+      `${message.playerName} wurde geskipped, da er kein Wort ausgewählt hat.`
+
+    messages.appendChild(item)
+
+    messages.scrollTop =
+      messages.scrollHeight
+  }
+
+  return
+}
+
 if (message.type === 'error') {
   showToast(message.message)
   return
 }
+
 
     } catch (error) {
       console.error(
@@ -1185,7 +1220,9 @@ function renderGame() {
           Die anderen Spieler dürfen dein Wort nicht sehen.
         </p>
 
-        <div id="word-options" class="word-options"></div>
+        <div id="word-choice-timer">8</div>
+
+<div id="word-options" class="word-options"></div>
 
       </div>
     </div>
