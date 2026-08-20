@@ -465,6 +465,11 @@ button {
   font-size: 9px;
 }
 
+#players {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
 .player {
   display: flex;
   align-items: center;

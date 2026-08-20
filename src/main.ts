@@ -626,7 +626,7 @@ if (message.type === 'player-skipped') {
     item.className = 'skip-message'
 
     item.textContent =
-      `${message.playerName} wurde geskipped, da er kein Wort ausgewählt hat.`
+      `${message.playerName} wurde geskipped, da kein Wort ausgewählt wurde.`
 
     messages.appendChild(item)
 
