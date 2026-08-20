@@ -342,15 +342,8 @@ if (message.type === 'joined') {
     roundElement.textContent =
       String(round)
   }
-  const wordChoiceModal =
-  document.querySelector<HTMLDivElement>('#word-choice')
 
-if (wordChoiceModal) {
-  if (message.phase === 'choosing' && drawerId !== playerId) {
-    wordChoiceModal.classList.add('hidden')
-  }
-}
-
+  // WORTAUSWAHL
   if (
     message.phase === 'choosing' &&
     drawerId === playerId &&
@@ -366,9 +359,26 @@ if (wordChoiceModal) {
         '#word-options',
       )
 
-    if (!modal || !options) return
+    const choiceTimer =
+      document.querySelector<HTMLElement>(
+        '#word-choice-timer',
+      )
+
+    if (!modal || !options) {
+      return
+    }
 
     modal.classList.remove('hidden')
+
+    if (choiceTimer) {
+      choiceTimer.textContent =
+        String(
+          Math.max(
+            0,
+            message.timeLeft ?? 8,
+          ),
+        )
+    }
 
     options.innerHTML =
       message.wordChoices
@@ -390,71 +400,142 @@ if (wordChoiceModal) {
         '.word-option',
       )
       .forEach((button) => {
-        button.addEventListener('click', () => {
-          const word = button.dataset.word
+        button.addEventListener(
+          'click',
+          () => {
+            const word =
+              button.dataset.word
 
-          if (!word) return
+            if (!word) {
+              return
+            }
 
-          currentWord = word
+            currentWord = word
 
-          sendToServer('choose-word', {
-            word,
-          })
+            sendToServer(
+              'choose-word',
+              {
+                word,
+              },
+            )
 
-          modal.classList.add('hidden')
-        })
+            modal.classList.add('hidden')
+
+            const wordElement =
+              document.querySelector<HTMLElement>(
+                '#word',
+              )
+
+            if (wordElement) {
+              wordElement.textContent =
+                currentWord
+            }
+          },
+        )
       })
+  } else {
+    const modal =
+      document.querySelector<HTMLDivElement>(
+        '#word-choice',
+      )
+
+    modal?.classList.add('hidden')
   }
 
+  // ZEICHNEN
   if (message.phase === 'drawing') {
-  roundFinished = false
+    roundFinished = false
 
-  const wordChoiceModal =
-    document.querySelector<HTMLDivElement>('#word-choice')
+    const wordChoiceModal =
+      document.querySelector<HTMLDivElement>(
+        '#word-choice',
+      )
 
-  wordChoiceModal?.classList.add('hidden')
+    wordChoiceModal?.classList.add('hidden')
 
-  const resultModal =
-    document.querySelector<HTMLDivElement>('#round-result')
+    const resultModal =
+      document.querySelector<HTMLDivElement>(
+        '#round-result',
+      )
 
-  resultModal?.classList.add('hidden')
+    resultModal?.classList.add('hidden')
 
-  const wordElement =
-    document.querySelector<HTMLElement>('#word')
+    const wordElement =
+      document.querySelector<HTMLElement>(
+        '#word',
+      )
 
-  if (wordElement) {
-    wordElement.textContent =
-      drawerId === playerId
-        ? currentWord
-        : '???'
+    if (wordElement) {
+      wordElement.textContent =
+        drawerId === playerId
+          ? currentWord
+          : '???'
+    }
+
+    const drawerName =
+      document.querySelector<HTMLElement>(
+        '#drawer-name',
+      )
+
+    const drawer =
+      players.find(
+        (player) =>
+          player.id === drawerId,
+      )
+
+    if (drawerName && drawer) {
+      drawerName.textContent =
+        drawer.name
+    }
+
+    if (timerElement) {
+      timerElement.textContent =
+        String(
+          Math.max(
+            0,
+            message.timeLeft ?? 60,
+          ),
+        )
+    }
+
+    renderPlayers()
   }
 
-  const drawerName =
-    document.querySelector<HTMLElement>('#drawer-name')
-
-  const drawer =
-    players.find(
-      (player) => player.id === drawerId,
-    )
-
-  if (drawerName && drawer) {
-    drawerName.textContent = drawer.name
-  }
-
-  renderPlayers()
-}
-
+  // RUNDEN-ENDE / 6 SEKUNDEN
   if (message.phase === 'reveal') {
     roundFinished = true
+
+    const resultModal =
+      document.querySelector<HTMLDivElement>(
+        '#round-result',
+      )
+
+    resultModal?.classList.remove('hidden')
+
+    const countdown =
+      document.querySelector<HTMLElement>(
+        '#result-countdown',
+      )
+
+    if (countdown) {
+      countdown.textContent =
+        String(
+          Math.max(
+            0,
+            message.timeLeft ?? 6,
+          ),
+        )
+    }
   }
 
   return
 }
 
-      if (message.type === 'error') {
-        showToast(message.message)
-        return
-      }
+if (message.type === 'error') {
+  showToast(message.message)
+  return
+}
+
     } catch (error) {
       console.error(
         'Fehler beim Verarbeiten der Server-Nachricht:',
@@ -1128,14 +1209,11 @@ function drawRemoteStroke(data: {
   size?: number
 }) {
   const canvas =
-    document.querySelector<HTMLCanvasElement>(
-      '#canvas',
-    )
+    document.querySelector<HTMLCanvasElement>('#canvas')
 
   if (!canvas) return
 
-  const ctx =
-    canvas.getContext('2d')
+  const ctx = canvas.getContext('2d')
 
   if (!ctx) return
 
@@ -1148,28 +1226,29 @@ function drawRemoteStroke(data: {
     return
   }
 
+  ctx.save()
+
+  ctx.setTransform(
+    devicePixelRatio,
+    0,
+    0,
+    devicePixelRatio,
+    0,
+    0,
+  )
+
   ctx.beginPath()
+  ctx.moveTo(data.x1, data.y1)
+  ctx.lineTo(data.x2, data.y2)
 
-  ctx.moveTo(
-    data.x1,
-    data.y1,
-  )
-
-  ctx.lineTo(
-    data.x2,
-    data.y2,
-  )
-
-  ctx.strokeStyle =
-    data.color ?? '#171721'
-
-  ctx.lineWidth =
-    data.size ?? 7
-
+  ctx.strokeStyle = data.color ?? '#171721'
+  ctx.lineWidth = data.size ?? 7
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
 
   ctx.stroke()
+
+  ctx.restore()
 }
 
 function setupCanvas() {
@@ -1297,13 +1376,15 @@ function setupCanvas() {
   ctx.stroke()
 
   sendToServer('draw', {
+  data: {
     x1,
     y1,
     x2,
     y2,
     color: state.brushColor,
     size: state.brushSize,
-  })
+  },
+})
 
   state.lastX = x2
   state.lastY = y2

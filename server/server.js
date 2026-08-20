@@ -243,13 +243,14 @@ function startChoosing(room) {
   broadcastPlayers(room)
 
   room.timer = setInterval(() => {
-    room.timeLeft--
+    room.timeLeft = Math.max(0, room.timeLeft - 1)
 
     broadcastState(room)
 
     if (room.timeLeft <= 0) {
-      const fallback =
-        room.wordChoices[0]
+      clearRoomTimers(room)
+
+      const fallback = room.wordChoices[0]
 
       chooseWord(
         room,
@@ -389,15 +390,9 @@ function finishRound(room) {
   broadcastState(room)
   broadcastPlayers(room)
 
-  room.revealTimer = setInterval(() => {
-    room.timeLeft--
-
-    broadcastState(room)
-
-    if (room.timeLeft <= 0) {
-      nextRound(room)
-    }
-  }, 1000)
+  room.revealTimer = setTimeout(() => {
+    nextRound(room)
+  }, 6000)
 }
 
 function nextRound(room) {
@@ -425,6 +420,10 @@ function nextRound(room) {
     playerIds[nextIndex]
 
   room.round++
+
+  // ALTES WORT SOFORT LÖSCHEN
+  room.word = null
+  room.wordChoices = []
 
   startChoosing(room)
 }
