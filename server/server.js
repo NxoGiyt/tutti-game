@@ -369,18 +369,12 @@ function finishRound(room) {
     word: room.word,
     rankings: room.guessOrder.map(
       (playerId, index) => {
-        const player =
-          room.players.get(playerId)
+        const player = room.players.get(playerId)
 
         return {
           playerId,
-          playerName:
-            player?.name ?? 'Spieler',
-          points:
-            calculatePoints(
-              room,
-              playerId,
-            ),
+          playerName: player?.name ?? 'Spieler',
+          points: calculatePoints(room, playerId),
           position: index + 1,
         }
       },
@@ -391,19 +385,12 @@ function finishRound(room) {
   broadcastPlayers(room)
 
   room.revealTimer = setInterval(() => {
-    room.timeLeft = Math.max(
-      0,
-      room.timeLeft - 1,
-    )
+    room.timeLeft = Math.max(0, room.timeLeft - 1)
 
     broadcastState(room)
 
     if (room.timeLeft <= 0) {
       clearRoomTimers(room)
-
-      room.word = null
-      room.wordChoices = []
-
       nextRound(room)
     }
   }, 1000)
@@ -720,17 +707,16 @@ function handleMessage(ws, message) {
   return
 }
 
+  if (message.type === 'clear-canvas') {
   if (
-    message.type === 'clear-canvas'
+    room.phase !== 'drawing' ||
+    player.id !== room.drawerId
   ) {
-    if (
-      room.phase !== 'drawing' ||
-      player.id !== room.drawerIdroom.drawerId
-    ) {
-      return
-    }
+    return
+  }
 
-    broadcast(room, 'clear-canvas')
+  broadcast(room, 'clear-canvas')
+  return
   }
 }
 
