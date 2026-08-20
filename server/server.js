@@ -697,9 +697,16 @@ function handleMessage(ws, message) {
     }
 
     broadcast(room, 'draw', {
-      playerId: player.id,
-      data: message.data,
-    })
+  playerId: player.id,
+  data: {
+    x1: message.x1,
+    y1: message.y1,
+    x2: message.x2,
+    y2: message.y2,
+    color: message.color,
+    size: message.size,
+  },
+})
 
     return
   }
