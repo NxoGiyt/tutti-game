@@ -235,7 +235,7 @@ function startChoosing(room) {
   room.phase = 'choosing'
   room.word = null
   room.wordChoices = randomWords(3)
-  room.timeLeft = 15
+  room.timeLeft = 8
   room.guessed.clear()
   room.guessOrder = []
 
