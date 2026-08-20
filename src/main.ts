@@ -623,7 +623,7 @@ if (message.type === 'player-skipped') {
     const item =
       document.createElement('div')
 
-    item.className = 'system-message'
+    item.className = 'skip-message'
 
     item.textContent =
       `${message.playerName} wurde geskipped, da er kein Wort ausgewählt hat.`

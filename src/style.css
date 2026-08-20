@@ -561,6 +561,11 @@ button {
   font-weight: 800;
 }
 
+.skip-message {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
 .guess {
   display: flex;
   gap: 7px;
