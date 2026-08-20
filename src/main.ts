@@ -710,12 +710,18 @@ function renderLobby() {
 
     connectToServer()
 
-    setTimeout(() => {
-      sendToServer('create-room', {
-        playerId,
-        name: playerName,
-      })
-    }, 100)
+const waitForConnection = window.setInterval(() => {
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    return
+  }
+
+  clearInterval(waitForConnection)
+
+  sendToServer('create-room', {
+    playerId,
+    name: playerName,
+  })
+}, 50)
   })
 
   document

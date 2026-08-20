@@ -574,11 +574,7 @@ function handleCreate(ws, message) {
   ws.roomCode = room.code
   ws.playerId = playerId
 
-  console.log(
-  'RAUM ERSTELLT:',
-  room.code,
-  playerId,
-)
+  
     send(ws, 'room-created', {
     roomCode: room.code,
     playerId,
