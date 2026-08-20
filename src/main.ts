@@ -350,6 +350,37 @@ if (message.type === 'joined') {
       String(round)
   }
 
+const waitingModal =
+  document.querySelector<HTMLDivElement>(
+    '#word-waiting',
+  )
+
+const waitingPlayer =
+  document.querySelector<HTMLElement>(
+    '#word-waiting-player',
+  )
+
+const choosingPlayer =
+  players.find(
+    (player) => player.id === drawerId,
+  )
+
+if (
+  message.phase === 'choosing' &&
+  drawerId !== playerId
+) {
+  if (waitingModal) {
+    waitingModal.classList.remove('hidden')
+  }
+
+  if (waitingPlayer) {
+    waitingPlayer.textContent =
+      choosingPlayer?.name ?? 'Spieler'
+  }
+} else {
+  waitingModal?.classList.add('hidden')
+}
+
   // WORTAUSWAHL
   if (
     message.phase === 'choosing' &&
@@ -1234,6 +1265,36 @@ function renderGame() {
       </div>
     </div>
 
+    <div
+  id="word-waiting"
+  class="modal-backdrop hidden"
+>
+  <div class="word-choice-card">
+    <div class="choice-icon">✏️</div>
+
+    <span class="eyebrow">
+      WORTAUSWAHL
+    </span>
+
+    <h2>
+      <span id="word-waiting-player">
+        Spieler
+      </span>
+      wählt gerade ein Wort aus.
+    </h2>
+
+    <p>
+      Bitte warte einen Moment, bis das Wort ausgewählt wurde.
+    </p>
+
+    <div class="word-waiting-loader">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+  </div>
+</div>
+
     <div id="round-result" class="modal-backdrop hidden">
       <div class="result-card">
 
@@ -1633,13 +1694,25 @@ function normalize(value: string) {
     .replace(/[^\p{L}\p{N}]/gu, '')
 }
 
-function addMessage(name: string, text: string) {
+function addMessage(
+  name: string,
+  text: string,
+) {
   const messages =
     document.querySelector<HTMLDivElement>(
       '#messages',
-    )!
+    )
 
-  const item = document.createElement('div')
+  if (!messages) return
+
+  const wasAtBottom =
+    messages.scrollHeight -
+      messages.scrollTop -
+      messages.clientHeight <
+    40
+
+  const item =
+    document.createElement('div')
 
   item.className = 'message'
 
@@ -1650,8 +1723,10 @@ function addMessage(name: string, text: string) {
 
   messages.appendChild(item)
 
-  messages.scrollTop =
-    messages.scrollHeight
+  if (wasAtBottom) {
+    messages.scrollTop =
+      messages.scrollHeight
+  }
 }
 
 function renderPlayers() {
