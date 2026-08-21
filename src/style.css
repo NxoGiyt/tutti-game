@@ -612,7 +612,7 @@ button {
   position: fixed;
   bottom: 25px;
   left: 50%;
-  z-index: 20;
+  z-index: 99999;
   padding: 13px 18px;
   border: 1px solid #3b3b49;
   border-radius: 12px;

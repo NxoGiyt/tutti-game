@@ -201,30 +201,51 @@ function connectToServer() {
   )
 
   const drawer =
-    message.players.find(
-      (
-        player: Player & {
-          isDrawer?: boolean
-        },
-      ) => player.isDrawer,
-    )
+  message.players.find(
+    (
+      player: Player & {
+        isDrawer?: boolean
+      },
+    ) => player.isDrawer,
+  )
 
-  if (drawer) {
-    drawerId = drawer.id
-  }
+drawerId =
+  drawer?.id ?? ''
 
-  renderPlayers()
+updateDrawingTools()
 
-  // Lobby-Spielerzahl aktualisieren
-  const lobbyCount =
-    document.querySelector<HTMLElement>(
-      '#lobby-player-count',
-    )
+renderPlayers()
 
-  if (lobbyCount) {
-    lobbyCount.textContent =
-      `${players.length}/${maxPlayers}`
-  }
+// Lobby-Spielerzahl aktualisieren
+const lobbyCount =
+  document.querySelector<HTMLElement>(
+    '#lobby-player-count',
+  )
+
+if (lobbyCount) {
+  lobbyCount.textContent =
+    `${players.length}/${maxPlayers}`
+}
+
+  const lobbyRoundTime =
+  document.querySelector<HTMLElement>(
+    '#lobby-round-time',
+  )
+
+if (lobbyRoundTime) {
+  lobbyRoundTime.textContent =
+    `${roundTime} Sekunden`
+}
+
+const lobbyMaxRounds =
+  document.querySelector<HTMLElement>(
+    '#lobby-max-rounds',
+  )
+
+if (lobbyMaxRounds) {
+  lobbyMaxRounds.textContent =
+    String(maxRounds)
+}
 
   // Lobby-Status aktualisieren
   const lobbyStatus =
@@ -359,12 +380,22 @@ if (message.type === 'game-finished') {
     )
 
   closeButton?.addEventListener(
-    'click',
-    () => {
-      modal.classList.add('hidden')
-    },
-    { once: true },
-  )
+  'click',
+  () => {
+    modal.classList.add('hidden')
+
+    roomCode = ''
+    currentWord = ''
+    drawerId = ''
+    round = 1
+    timeLeft = 60
+    gamePhase = 'lobby'
+    players = []
+
+    window.location.reload()
+  },
+  { once: true },
+)
 
   return
 }
@@ -574,7 +605,7 @@ if (message.type === 'draw-history') {
   round = Number(message.round ?? 1)
   drawerId = message.drawerId
   timeLeft = Number(message.timeLeft ?? 0)
-  gamePhase = message.phase
+  gamePhase = message.phasegamePhase = message.phase
 
     updateDrawingTools()
 
@@ -1609,20 +1640,20 @@ function renderGame() {
     </div>
 
     <div class="lobby-setting">
-      <span>⏱️ Rundenzeit</span>
+  <span>⏱️ Rundenzeit</span>
 
-      <strong>
-        ${roundTime} Sekunden
-      </strong>
-    </div>
+  <strong id="lobby-round-time">
+    ${roundTime} Sekunden
+  </strong>
+</div>
 
     <div class="lobby-setting">
-      <span>🔄 Runden</span>
+  <span>🔄 Runden</span>
 
-      <strong>
-        ${maxRounds}
-      </strong>
-    </div>
+  <strong id="lobby-max-rounds">
+    ${maxRounds}
+  </strong>
+</div>
 
   </div>
 
