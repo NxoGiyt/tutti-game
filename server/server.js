@@ -188,6 +188,10 @@ function createRoom() {
 
     round: 0,
     drawerId: null,
+    maxPlayers: 8,
+roundTime: 60,
+maxRounds: 5,
+hostId: null,
 
     word: null,
     wordChoices: [],
@@ -228,12 +232,22 @@ function deleteRoomIfEmpty(room) {
 }
 
 function startGame(room) {
-  if (room.players.size < 1) return
+
+  if (room.players.size < 2) {
+    return
+  }
+
+  if (room.phase !== 'lobby') {
+    return
+  }
 
   room.round = 1
 
   room.drawerId =
     [...room.players.keys()][0]
+
+  room.timeLeft =
+    room.roundTime
 
   startChoosing(room)
 }
@@ -288,7 +302,10 @@ function chooseWord(room, playerId, word) {
 
   room.word = word
   room.phase = 'drawing'
-  room.timeLeft = 60
+
+  room.timeLeft =
+    room.roundTime
+
   room.guessed.clear()
   room.guessOrder = []
 
@@ -382,12 +399,18 @@ function finishRound(room) {
     word: room.word,
     rankings: room.guessOrder.map(
       (playerId, index) => {
-        const player = room.players.get(playerId)
+        const player =
+          room.players.get(playerId)
 
         return {
           playerId,
-          playerName: player?.name ?? 'Spieler',
-          points: calculatePoints(room, playerId),
+          playerName:
+            player?.name ?? 'Spieler',
+          points:
+            calculatePoints(
+              room,
+              playerId,
+            ),
           position: index + 1,
         }
       },
@@ -397,16 +420,55 @@ function finishRound(room) {
   broadcastState(room)
   broadcastPlayers(room)
 
-  room.revealTimer = setInterval(() => {
-    room.timeLeft = Math.max(0, room.timeLeft - 1)
+  room.revealTimer =
+    setInterval(() => {
+      room.timeLeft =
+        Math.max(
+          0,
+          room.timeLeft - 1,
+        )
 
-    broadcastState(room)
+      broadcastState(room)
 
-    if (room.timeLeft <= 0) {
-      clearRoomTimers(room)
-      nextRound(room)
-    }
-  }, 1000)
+      if (room.timeLeft <= 0) {
+        clearRoomTimers(room)
+
+        if (
+          room.round >=
+          room.maxRounds
+        ) {
+          finishGame(room)
+          return
+        }
+
+        nextRound(room)
+      }
+    }, 1000)
+}
+
+function finishGame(room) {
+  clearRoomTimers(room)
+
+  room.phase = 'finished'
+  room.timeLeft = 0
+
+  const rankings =
+    [...room.players.values()]
+      .sort((a, b) => b.score - a.score)
+      .map((player, index) => ({
+        position: index + 1,
+        playerId: player.id,
+        playerName: player.name,
+        score: player.score,
+        color: player.color,
+      }))
+
+  broadcast(room, 'game-finished', {
+    rankings,
+  })
+
+  broadcastState(room)
+  broadcastPlayers(room)
 }
 
 function nextRound(room) {
@@ -482,14 +544,14 @@ function handleJoin(ws, message) {
     return
   }
 
-  if (room.players.size >= 12) {
-    send(ws, 'error', {
-      message:
-        'Der Raum ist bereits voll.',
-    })
+  if (room.players.size >= room.maxPlayers) {
+  send(ws, 'error', {
+    message:
+      `Der Raum ist voll. Maximal ${room.maxPlayers} Spieler sind erlaubt.`,
+  })
 
-    return
-  }
+  return
+}
 
   const cleanName =
     name.trim().slice(0, 16)
@@ -609,13 +671,31 @@ function handleCreate(ws, message) {
   const room = createRoom()
 
   room.maxPlayers =
-    Number(maxPlayers) || 8
+  Math.min(
+    12,
+    Math.max(
+      2,
+      Number(maxPlayers) || 8,
+    ),
+  )
 
-  room.roundTime =
-    Number(roundTime) || 60
+room.roundTime =
+  Math.min(
+    120,
+    Math.max(
+      30,
+      Number(roundTime) || 60,
+    ),
+  )
 
-  room.maxRounds =
-    Number(maxRounds) || 5
+room.maxRounds =
+  Math.min(
+    10,
+    Math.max(
+      1,
+      Number(maxRounds) || 5,
+    ),
+  )
 
   const player = {
     id: playerId,
@@ -898,16 +978,17 @@ wss.on('connection', (ws) => {
   const leavingPlayerName =
     player.name
 
-  // Position des Spielers merken,
-  // BEVOR er gelöscht wird.
   const playerIds =
     [...room.players.keys()]
 
   const leavingIndex =
-    playerIds.indexOf(leavingPlayerId)
+    playerIds.indexOf(
+      leavingPlayerId,
+    )
 
   const wasDrawer =
-    room.drawerId === leavingPlayerId
+    room.drawerId ===
+    leavingPlayerId
 
   // Spieler entfernen
   room.players.delete(
@@ -919,16 +1000,49 @@ wss.on('connection', (ws) => {
       leavingPlayerName,
   })
 
-  // Wenn NICHT der Zeichner gegangen ist:
-  // alles normal weiterlaufen lassen.
-  if (!wasDrawer) {
-    broadcastPlayers(room)
-    broadcastState(room)
+  // Raum komplett leer
+  if (room.players.size === 0) {
+    clearRoomTimers(room)
+
     deleteRoomIfEmpty(room)
+
     return
   }
 
-  // Der aktuelle Zeichner ist gegangen.
+  // Nur noch 1 Spieler:
+  // Zurück in die Lobby.
+  if (room.players.size < 2) {
+    clearRoomTimers(room)
+
+    room.phase = 'lobby'
+    room.drawerId = null
+    room.word = null
+    room.wordChoices = []
+    room.drawHistory = []
+    room.timeLeft =
+      room.roundTime
+
+    room.guessed.clear()
+    room.guessOrder = []
+    room.guessPoints.clear()
+
+    broadcastPlayers(room)
+    broadcastState(room)
+
+    return
+  }
+
+  // Wenn NICHT der Zeichner gegangen ist:
+  if (!wasDrawer) {
+    broadcastPlayers(room)
+    broadcastState(room)
+
+    deleteRoomIfEmpty(room)
+
+    return
+  }
+
+  // Zeichner ist gegangen.
   clearRoomTimers(room)
 
   room.phase = 'lobby'
@@ -936,22 +1050,16 @@ wss.on('connection', (ws) => {
   room.word = null
   room.wordChoices = []
   room.drawHistory = []
-  room.timeLeft = 8
+  room.timeLeft =
+    room.roundTime
+
   room.guessed.clear()
   room.guessOrder = []
   room.guessPoints.clear()
 
-  // Sind noch Spieler da?
   const remainingPlayers =
     [...room.players.keys()]
 
-  if (remainingPlayers.length === 0) {
-    deleteRoomIfEmpty(room)
-    return
-  }
-
-  // Der Spieler NACH dem verlassenen Spieler
-  // wird der nächste Zeichner.
   const nextIndex =
     leavingIndex %
     remainingPlayers.length
@@ -959,16 +1067,13 @@ wss.on('connection', (ws) => {
   room.drawerId =
     remainingPlayers[nextIndex]
 
-  // Neue Runde
   room.round += 1
 
   broadcastPlayers(room)
   broadcastState(room)
 
-  // SOFORT neue Wortauswahl für den nächsten Zeichner
   startChoosing(room)
-
-  })
+})
 })
 
 const heartbeat = setInterval(() => {

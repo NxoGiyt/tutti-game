@@ -172,10 +172,19 @@ function connectToServer() {
     // MUSS HIER WEITERHIN STEHEN.
 
       if (message.type === 'players') {
-        hostId = String(message.hostId ?? '')
-maxPlayers = Number(message.maxPlayers ?? 8)
-roundTime = Number(message.roundTime ?? 60)
-maxRounds = Number(message.maxRounds ?? 5)
+
+  hostId =
+    String(message.hostId ?? '')
+
+  maxPlayers =
+    Number(message.maxPlayers ?? 8)
+
+  roundTime =
+    Number(message.roundTime ?? 60)
+
+  maxRounds =
+    Number(message.maxRounds ?? 5)
+
   players = message.players.map(
     (
       player: Player & {
@@ -206,8 +215,170 @@ maxRounds = Number(message.maxRounds ?? 5)
 
   renderPlayers()
 
+  // Lobby-Spielerzahl aktualisieren
+  const lobbyCount =
+    document.querySelector<HTMLElement>(
+      '#lobby-player-count',
+    )
+
+  if (lobbyCount) {
+    lobbyCount.textContent =
+      `${players.length}/${maxPlayers}`
+  }
+
+  // Lobby-Status aktualisieren
+  const lobbyStatus =
+    document.querySelector<HTMLElement>(
+      '#lobby-status',
+    )
+
+  if (lobbyStatus) {
+
+    if (players.length < 2) {
+
+      lobbyStatus.textContent =
+        '⏳ Warte auf mindestens einen weiteren Spieler...'
+
+    } else if (
+      playerId === hostId
+    ) {
+
+      lobbyStatus.textContent =
+        '🚀 Du bist der Host. Du kannst das Spiel starten.'
+
+    } else {
+
+      lobbyStatus.textContent =
+        '⏳ Warte darauf, dass der Host das Spiel startet...'
+    }
+  }
+
   return
 }
+
+if (message.type === 'game-finished') {
+  const modal =
+    document.querySelector<HTMLDivElement>(
+      '#game-result',
+    )
+
+  const rankings =
+    document.querySelector<HTMLDivElement>(
+      '#game-rankings',
+    )
+
+  if (!modal || !rankings) {
+    return
+  }
+
+  const rankingList =
+    message.rankings ?? []
+
+  rankings.innerHTML =
+    rankingList
+      .map(
+        (
+          player: {
+            position: number
+            playerId: string
+            playerName: string
+            score: number
+            color: string
+          },
+        ) => {
+          let medal = ''
+
+          if (player.position === 1) {
+            medal = '🥇'
+          } else if (
+            player.position === 2
+          ) {
+            medal = '🥈'
+          } else if (
+            player.position === 3
+          ) {
+            medal = '🥉'
+          } else {
+            medal = `${player.position}.`
+          }
+
+          return `
+            <div
+              class="game-ranking-row ${
+                player.position <= 3
+                  ? 'podium'
+                  : ''
+              }"
+            >
+
+              <div class="ranking-position">
+                ${medal}
+              </div>
+
+              <div
+                class="avatar"
+                style="background:${player.color}"
+              >
+                ${escapeHtml(
+                  player.playerName
+                    .charAt(0)
+                    .toUpperCase(),
+                )}
+              </div>
+
+              <div class="ranking-name">
+                <strong>
+                  ${escapeHtml(
+                    player.playerName,
+                  )}
+                </strong>
+
+                ${
+                  player.playerId === playerId
+                    ? '<small>DU</small>'
+                    : ''
+                }
+              </div>
+
+              <div class="ranking-score">
+                ${player.score}
+                <span>Punkte</span>
+              </div>
+
+            </div>
+          `
+        },
+      )
+      .join('')
+
+  modal.classList.remove('hidden')
+
+  const closeButton =
+    document.querySelector<HTMLButtonElement>(
+      '#game-result-close',
+    )
+
+  closeButton?.addEventListener(
+    'click',
+    () => {
+      modal.classList.add('hidden')
+    },
+    { once: true },
+  )
+
+  return
+}
+
+if (message.type === 'draw') {
+  if (message.playerId === playerId) {
+    return
+  }
+
+  drawRemoteStroke(message.data)
+  return
+}
+
+
 
       if (message.type === 'draw') {
         if (message.playerId === playerId) {
@@ -985,75 +1156,152 @@ function renderLobby() {
           </div>
         </div>
 
-        <div id="room-settings" class="modal-backdrop hidden">
-  <div class="word-choice-card">
+        <div
+  id="room-settings"
+  class="modal-backdrop hidden"
+>
+  <div class="room-settings-card">
 
-    <div class="choice-icon">⚙️</div>
+    <div class="room-settings-header">
 
-    <span class="eyebrow">
-      NEUEN RAUM ERSTELLEN
-    </span>
+      <div class="settings-icon">
+        ⚙️
+      </div>
 
-    <h2>Raum einstellen</h2>
+      <div>
+        <span class="eyebrow">
+          NEUEN RAUM ERSTELLEN
+        </span>
 
-    <label>
-      Maximale Spieler
-      <select id="max-players">
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-        <option value="5">5</option>
-        <option value="6">6</option>
-        <option value="7">7</option>
-        <option value="8" selected>8</option>
-        <option value="9">9</option>
-        <option value="10">10</option>
-        <option value="11">11</option>
-        <option value="12">12</option>
-      </select>
-    </label>
+        <h2>
+          Spieleinstellungen
+        </h2>
 
-    <label>
-      Rundenzeit
-      <select id="round-time">
-        <option value="30">30 Sekunden</option>
-        <option value="60" selected>60 Sekunden</option>
-        <option value="90">90 Sekunden</option>
-        <option value="120">120 Sekunden</option>
-      </select>
-    </label>
+        <p>
+          Passe deinen Raum an, bevor du ihn erstellst.
+        </p>
+      </div>
 
-    <label>
-      Anzahl der Runden
-      <select id="max-rounds">
-        <option value="1">1 Runde</option>
-        <option value="2">2 Runden</option>
-        <option value="3">3 Runden</option>
-        <option value="4">4 Runden</option>
-        <option value="5" selected>5 Runden</option>
-        <option value="6">6 Runden</option>
-        <option value="7">7 Runden</option>
-        <option value="8">8 Runden</option>
-        <option value="9">9 Runden</option>
-        <option value="10">10 Runden</option>
-      </select>
-    </label>
+    </div>
 
-    <button
-      id="confirm-create-room"
-      class="primary-button"
-      type="button"
-    >
-      🎮 Raum erstellen
-    </button>
+    <div class="settings-grid">
 
-    <button
-      id="cancel-create-room"
-      class="secondary-button"
-      type="button"
-    >
-      Abbrechen
-    </button>
+      <div class="setting-item">
+        <div class="setting-info">
+          <strong>👥 Spieler</strong>
+          <span>Wie viele Spieler dürfen beitreten?</span>
+        </div>
+
+        <select id="max-players">
+          <option value="2">2 Spieler</option>
+          <option value="3">3 Spieler</option>
+          <option value="4">4 Spieler</option>
+          <option value="5">5 Spieler</option>
+          <option value="6">6 Spieler</option>
+          <option value="7">7 Spieler</option>
+          <option value="8" selected>8 Spieler</option>
+          <option value="9">9 Spieler</option>
+          <option value="10">10 Spieler</option>
+          <option value="11">11 Spieler</option>
+          <option value="12">12 Spieler</option>
+        </select>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <strong>⏱️ Rundenzeit</strong>
+          <span>Wie lange darf gezeichnet werden?</span>
+        </div>
+
+        <select id="round-time">
+          <option value="30">
+            30 Sekunden
+          </option>
+
+          <option value="60" selected>
+            60 Sekunden
+          </option>
+
+          <option value="90">
+            90 Sekunden
+          </option>
+
+          <option value="120">
+            120 Sekunden
+          </option>
+        </select>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <strong>🔄 Runden</strong>
+          <span>Wie viele Runden werden gespielt?</span>
+        </div>
+
+        <select id="max-rounds">
+          <option value="1">
+            1 Runde
+          </option>
+
+          <option value="2">
+            2 Runden
+          </option>
+
+          <option value="3">
+            3 Runden
+          </option>
+
+          <option value="4">
+            4 Runden
+          </option>
+
+          <option value="5" selected>
+            5 Runden
+          </option>
+
+          <option value="6">
+            6 Runden
+          </option>
+
+          <option value="7">
+            7 Runden
+          </option>
+
+          <option value="8">
+            8 Runden
+          </option>
+
+          <option value="9">
+            9 Runden
+          </option>
+
+          <option value="10">
+            10 Runden
+          </option>
+        </select>
+      </div>
+
+    </div>
+
+    <div class="settings-actions">
+
+      <button
+        id="cancel-create-room"
+        class="secondary-button"
+        type="button"
+      >
+        Abbrechen
+      </button>
+
+      <button
+        id="confirm-create-room"
+        class="primary-button"
+        type="button"
+      >
+        🚀 Raum erstellen
+      </button>
+
+    </div>
 
   </div>
 </div>
@@ -1331,6 +1579,62 @@ function renderGame() {
             <canvas id="canvas"></canvas>
 
             <div
+  id="lobby-screen"
+  class="lobby-screen"
+>
+  <div class="lobby-icon">
+    🎨
+  </div>
+
+  <span class="eyebrow">
+    SPIELLOBBY
+  </span>
+
+  <h2>
+    Bereit zum Zeichnen?
+  </h2>
+
+  <p>
+    Warte auf weitere Spieler und den Start durch den Host.
+  </p>
+
+  <div class="lobby-settings">
+
+    <div class="lobby-setting">
+      <span>👥 Spieler</span>
+
+      <strong id="lobby-player-count">
+        ${players.length}/${maxPlayers}
+      </strong>
+    </div>
+
+    <div class="lobby-setting">
+      <span>⏱️ Rundenzeit</span>
+
+      <strong>
+        ${roundTime} Sekunden
+      </strong>
+    </div>
+
+    <div class="lobby-setting">
+      <span>🔄 Runden</span>
+
+      <strong>
+        ${maxRounds}
+      </strong>
+    </div>
+
+  </div>
+
+  <div
+    id="lobby-status"
+    class="lobby-status"
+  >
+    ⏳ Warte auf Spieler...
+  </div>
+</div>
+
+            <div
   class="canvas-tools"
   id="canvas-tools"
   ${drawerId === playerId && gamePhase === 'drawing' ? '' : 'hidden'}
@@ -1550,6 +1854,44 @@ function renderGame() {
 
       </div>
     </div>
+
+    <div
+  id="game-result"
+  class="modal-backdrop hidden"
+>
+  <div class="game-result-card">
+
+    <div class="choice-icon">
+      🏆
+    </div>
+
+    <span class="eyebrow">
+      SPIEL BEENDET
+    </span>
+
+    <h2>
+      Endstand
+    </h2>
+
+    <p class="game-result-subtitle">
+      Das Spiel ist vorbei!
+    </p>
+
+    <div
+      id="game-rankings"
+      class="game-rankings"
+    ></div>
+
+    <button
+      id="game-result-close"
+      class="primary-button"
+      type="button"
+    >
+      ✓ Schließen
+    </button>
+
+  </div>
+</div>
   `
 
 setupCanvas()
@@ -1567,16 +1909,28 @@ function updateDrawingTools() {
       '#canvas-tools',
     )
 
-  if (!tools) return
+  const lobby =
+    document.querySelector<HTMLDivElement>(
+      '#lobby-screen',
+    )
 
   const amDrawer =
     drawerId === playerId &&
     gamePhase === 'drawing'
 
-  if (amDrawer) {
-    tools.style.display = 'flex'
-  } else {
-    tools.style.display = 'none'
+  if (tools) {
+    if (amDrawer) {
+      tools.hidden = false
+    } else {
+      tools.hidden = true
+    }
+  }
+
+  if (lobby) {
+    lobby.style.display =
+      gamePhase === 'lobby'
+        ? 'flex'
+        : 'none'
   }
 }
 
