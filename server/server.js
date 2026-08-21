@@ -855,66 +855,94 @@ wss.on('connection', (ws) => {
   })
 
   ws.on('close', () => {
-    const room =
-      rooms.get(ws.roomCode)
+  const room =
+    rooms.get(ws.roomCode)
 
-    if (!room) return
+  if (!room) return
 
-    const player =
-      room.players.get(ws.playerId)
+  const player =
+    room.players.get(ws.playerId)
 
-    if (
-  player &&
-  player.ws === ws
-) {
-  const leavingName = player.name
+  if (!player || player.ws !== ws) {
+    return
+  }
 
+  const leavingPlayerId =
+    ws.playerId
+
+  const leavingPlayerName =
+    player.name
+
+  // Position des Spielers merken,
+  // BEVOR er gelöscht wird.
+  const playerIds =
+    [...room.players.keys()]
+
+  const leavingIndex =
+    playerIds.indexOf(leavingPlayerId)
+
+  const wasDrawer =
+    room.drawerId === leavingPlayerId
+
+  // Spieler entfernen
   room.players.delete(
-    ws.playerId,
+    leavingPlayerId,
   )
 
   broadcast(room, 'player-left', {
-    playerName: leavingName,
+    playerName:
+      leavingPlayerName,
   })
-}
 
-    if (room.drawerId === ws.playerId) {
+  // Wenn NICHT der Zeichner gegangen ist:
+  // alles normal weiterlaufen lassen.
+  if (!wasDrawer) {
+    broadcastPlayers(room)
+    broadcastState(room)
+    deleteRoomIfEmpty(room)
+    return
+  }
+
+  // Der aktuelle Zeichner ist gegangen.
   clearRoomTimers(room)
-
-  // Position des Spielers merken,
-  // bevor er aus der Map entfernt wurde.
-  const playerIds = [...room.players.keys()]
-  const leavingIndex =
-    playerIds.indexOf(ws.playerId)
 
   room.phase = 'lobby'
   room.drawerId = null
   room.word = null
   room.wordChoices = []
   room.drawHistory = []
+  room.timeLeft = 8
   room.guessed.clear()
   room.guessOrder = []
   room.guessPoints.clear()
 
+  // Sind noch Spieler da?
   const remainingPlayers =
     [...room.players.keys()]
 
-  if (remainingPlayers.length > 0) {
-
-    const nextIndex =
-      leavingIndex % remainingPlayers.length
-
-    room.drawerId =
-      remainingPlayers[nextIndex]
-
-    startChoosing(room)
-  }
-}
-
-    broadcastPlayers(room)
-    broadcastState(room)
-
+  if (remainingPlayers.length === 0) {
     deleteRoomIfEmpty(room)
+    return
+  }
+
+  // Der Spieler NACH dem verlassenen Spieler
+  // wird der nächste Zeichner.
+  const nextIndex =
+    leavingIndex %
+    remainingPlayers.length
+
+  room.drawerId =
+    remainingPlayers[nextIndex]
+
+  // Neue Runde
+  room.round += 1
+
+  broadcastPlayers(room)
+  broadcastState(room)
+
+  // SOFORT neue Wortauswahl für den nächsten Zeichner
+  startChoosing(room)
+
   })
 })
 

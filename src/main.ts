@@ -382,14 +382,18 @@ if (message.type === 'draw-history') {
 }
 
       if (message.type === 'state') {
-  roomCode = message.roomCode
-  round = message.round
+  roomCode = String(message.roomCode ?? '')
+  round = Number(message.round ?? 1)
   drawerId = message.drawerId
-  timeLeft = message.timeLeft
+  timeLeft = Number(message.timeLeft ?? 0)
   gamePhase = message.phase
+  
+    updateDrawingTools()
 
   const timerElement =
-    document.querySelector<HTMLDivElement>('#timer')
+    document.querySelector<HTMLDivElement>(
+      '#timer',
+    )
 
   if (timerElement) {
     timerElement.textContent =
@@ -405,6 +409,7 @@ if (message.type === 'draw-history') {
     roundElement.textContent =
       String(round)
   }
+
 
 const waitingModal =
   document.querySelector<HTMLDivElement>(
@@ -1175,6 +1180,7 @@ function renderGame() {
             <div
   class="canvas-tools"
   id="canvas-tools"
+  hidden
 >
 
               <div class="colors">
@@ -1414,8 +1420,11 @@ function updateDrawingTools() {
     drawerId === playerId &&
     gamePhase === 'drawing'
 
-  tools.style.display =
-    amDrawer ? 'flex' : 'none'
+  if (amDrawer) {
+    tools.removeAttribute('hidden')
+  } else {
+    tools.setAttribute('hidden', 'true')
+  }
 }
 
 function setupCopyRoomCode() {
