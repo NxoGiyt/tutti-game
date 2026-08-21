@@ -387,7 +387,7 @@ if (message.type === 'draw-history') {
   drawerId = message.drawerId
   timeLeft = Number(message.timeLeft ?? 0)
   gamePhase = message.phase
-  
+
     updateDrawingTools()
 
   const timerElement =
@@ -1180,7 +1180,7 @@ function renderGame() {
             <div
   class="canvas-tools"
   id="canvas-tools"
-  hidden
+  ${drawerId === playerId && gamePhase === 'drawing' ? '' : 'hidden'}
 >
 
               <div class="colors">
