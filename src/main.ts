@@ -968,6 +968,79 @@ function renderLobby() {
           </div>
         </div>
 
+        <div id="room-settings" class="modal-backdrop hidden">
+  <div class="word-choice-card">
+
+    <div class="choice-icon">⚙️</div>
+
+    <span class="eyebrow">
+      NEUEN RAUM ERSTELLEN
+    </span>
+
+    <h2>Raum einstellen</h2>
+
+    <label>
+      Maximale Spieler
+      <select id="max-players">
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+        <option value="8" selected>8</option>
+        <option value="9">9</option>
+        <option value="10">10</option>
+        <option value="11">11</option>
+        <option value="12">12</option>
+      </select>
+    </label>
+
+    <label>
+      Rundenzeit
+      <select id="round-time">
+        <option value="30">30 Sekunden</option>
+        <option value="60" selected>60 Sekunden</option>
+        <option value="90">90 Sekunden</option>
+        <option value="120">120 Sekunden</option>
+      </select>
+    </label>
+
+    <label>
+      Anzahl der Runden
+      <select id="max-rounds">
+        <option value="1">1 Runde</option>
+        <option value="2">2 Runden</option>
+        <option value="3">3 Runden</option>
+        <option value="4">4 Runden</option>
+        <option value="5" selected>5 Runden</option>
+        <option value="6">6 Runden</option>
+        <option value="7">7 Runden</option>
+        <option value="8">8 Runden</option>
+        <option value="9">9 Runden</option>
+        <option value="10">10 Runden</option>
+      </select>
+    </label>
+
+    <button
+      id="confirm-create-room"
+      class="primary-button"
+      type="button"
+    >
+      🎮 Raum erstellen
+    </button>
+
+    <button
+      id="cancel-create-room"
+      class="secondary-button"
+      type="button"
+    >
+      Abbrechen
+    </button>
+
+  </div>
+</div>
+
         <div class="feature-row">
           <div>
             <strong>🎨 Zeichnen</strong>
@@ -1000,6 +1073,8 @@ function renderLobby() {
     )
   })
 
+  
+
  document
   .querySelector<HTMLButtonElement>('#create-room')!
   .addEventListener('click', () => {
@@ -1007,31 +1082,92 @@ function renderLobby() {
 
     if (!validateName()) return
 
+    document
+      .querySelector<HTMLDivElement>('#room-settings')
+      ?.classList.remove('hidden')
+  })
+
+  document
+  .querySelector<HTMLButtonElement>('#cancel-create-room')
+  ?.addEventListener('click', () => {
+    document
+      .querySelector<HTMLDivElement>('#room-settings')
+      ?.classList.add('hidden')
+  })
+
+  document
+  .querySelector<HTMLButtonElement>('#confirm-create-room')
+  ?.addEventListener('click', () => {
+    const maxPlayers =
+      Number(
+        document.querySelector<HTMLSelectElement>(
+          '#max-players',
+        )?.value ?? 8,
+      )
+
+    const roundTime =
+      Number(
+        document.querySelector<HTMLSelectElement>(
+          '#round-time',
+        )?.value ?? 60,
+      )
+
+    const maxRounds =
+      Number(
+        document.querySelector<HTMLSelectElement>(
+          '#max-rounds',
+        )?.value ?? 5,
+      )
+
+    console.log('RAUM-EINSTELLUNGEN:', {
+      maxPlayers,
+      roundTime,
+      maxRounds,
+    })
+
+    const settings =
+      document.querySelector<HTMLDivElement>(
+        '#room-settings',
+      )
+
+    settings?.classList.add('hidden')
+
     const button =
-      document.querySelector<HTMLButtonElement>('#create-room')
+      document.querySelector<HTMLButtonElement>(
+        '#create-room',
+      )
 
     if (!button) return
 
-    // Sofort deaktivieren
     button.disabled = true
-    button.textContent = '⏳ Server wird gestartet...'
+    button.textContent =
+      '⏳ Server wird gestartet...'
 
     connectToServer()
 
-    const waitForConnection = window.setInterval(() => {
-      if (!socket || socket.readyState !== WebSocket.OPEN) {
-        return
-      }
+    const waitForConnection =
+      window.setInterval(() => {
+        if (
+          !socket ||
+          socket.readyState !== WebSocket.OPEN
+        ) {
+          return
+        }
 
-      clearInterval(waitForConnection)
+        clearInterval(waitForConnection)
 
-      console.log('SENDE CREATE-ROOM JETZT')
+        console.log(
+          'SENDE CREATE-ROOM JETZT',
+        )
 
-      sendToServer('create-room', {
-        playerId,
-        name: playerName,
-      })
-    }, 50)
+        sendToServer('create-room', {
+          playerId,
+          name: playerName,
+          maxPlayers,
+          roundTime,
+          maxRounds,
+        })
+      }, 50)
   })
 
   document
