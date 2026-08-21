@@ -1607,7 +1607,7 @@ function renderGame() {
               <strong id="word">
                 ${currentWord
                   ? escapeHtml(currentWord)
-                  : 'Wort auswählen'}
+                  : 'AUF HOST WARTEN'}
               </strong>
             </div>
           </div>
@@ -1903,43 +1903,91 @@ function renderGame() {
       </div>
     </div>
 
-    <div
-  id="game-result"
-  class="modal-backdrop hidden"
->
-  <div class="game-result-card">
+        <div
+      id="game-result"
+      class="modal-backdrop hidden"
+    >
+      <div class="game-result-card">
 
-    <div class="choice-icon">
-      🏆
+        <div class="choice-icon">
+          🏆
+        </div>
+
+        <span class="eyebrow">
+          SPIEL BEENDET
+        </span>
+
+        <h2>
+          Endstand
+        </h2>
+
+        <p class="game-result-subtitle">
+          Das Spiel ist vorbei!
+        </p>
+
+        <div
+          id="game-rankings"
+          class="game-rankings"
+        ></div>
+
+        <button
+          id="game-result-close"
+          class="primary-button"
+          type="button"
+        >
+          ✓ Schließen
+        </button>
+
+      </div>
     </div>
 
-    <span class="eyebrow">
-      SPIEL BEENDET
-    </span>
 
-    <h2>
-      Endstand
-    </h2>
-
-    <p class="game-result-subtitle">
-      Das Spiel ist vorbei!
-    </p>
-
+    <!-- RAUM VERLASSEN MODAL -->
     <div
-      id="game-rankings"
-      class="game-rankings"
-    ></div>
-
-    <button
-      id="game-result-close"
-      class="primary-button"
-      type="button"
+      id="leave-room-modal"
+      class="modal-backdrop hidden"
     >
-      ✓ Schließen
-    </button>
+      <div class="leave-room-card">
 
-  </div>
-</div>
+        <div class="leave-room-icon">
+          🚪
+        </div>
+
+        <span class="eyebrow">
+          RAUM VERLASSEN
+        </span>
+
+        <h2>
+          Raum wirklich verlassen?
+        </h2>
+
+        <p>
+          Du verlässt den aktuellen Raum
+          und kehrst zum Hauptmenü zurück.
+        </p>
+
+        <div class="leave-room-actions">
+
+          <button
+            id="cancel-leave-room"
+            class="secondary-button"
+            type="button"
+          >
+            Abbrechen
+          </button>
+
+          <button
+            id="confirm-leave-room"
+            class="danger-button"
+            type="button"
+          >
+            🚪 Raum verlassen
+          </button>
+
+        </div>
+
+      </div>
+    </div>
   `
 
 setupCanvas()
@@ -2402,15 +2450,40 @@ function setupLeaveRoom() {
       '#leave-room',
     )
 
-  if (!button) return
+  const modal =
+    document.querySelector<HTMLDivElement>(
+      '#leave-room-modal',
+    )
+
+  const cancelButton =
+    document.querySelector<HTMLButtonElement>(
+      '#cancel-leave-room',
+    )
+
+  const confirmButton =
+    document.querySelector<HTMLButtonElement>(
+      '#confirm-leave-room',
+    )
+
+  if (
+    !button ||
+    !modal ||
+    !cancelButton ||
+    !confirmButton
+  ) {
+    return
+  }
 
   button.addEventListener('click', () => {
-    const confirmed =
-      window.confirm(
-        'Möchtest du den Raum wirklich verlassen und zum Hauptmenü zurückkehren?',
-      )
+    modal.classList.remove('hidden')
+  })
 
-    if (!confirmed) return
+  cancelButton.addEventListener('click', () => {
+    modal.classList.add('hidden')
+  })
+
+  confirmButton.addEventListener('click', () => {
+    modal.classList.add('hidden')
 
     if (socket) {
       socket.close()

@@ -1203,39 +1203,74 @@ button {
 }
 
 /* ================================
-   RAUM VERLASSEN
+   RAUM VERLASSEN – MODAL
 ================================ */
 
-.leave-room-button {
-  position: absolute;
-  top: 14px;
-  right: 14px;
+.leave-room-card {
+  width: min(440px, calc(100vw - 32px));
+  padding: 32px;
 
-  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
 
-  border: 1px solid rgba(255, 80, 80, 0.25);
+  background: #1b1b25;
+
+  box-shadow:
+    0 25px 80px rgba(0, 0, 0, 0.45);
+
+  text-align: center;
+}
+
+.leave-room-icon {
+  width: 64px;
+  height: 64px;
+
+  margin: 0 auto 18px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 18px;
+
+  background: rgba(180, 45, 45, 0.15);
+
+  font-size: 30px;
+}
+
+.leave-room-card h2 {
+  margin: 8px 0 10px;
+}
+
+.leave-room-card p {
+  margin: 0 auto 26px;
+
+  max-width: 360px;
+
+  color: #9292a2;
+
+  line-height: 1.5;
+}
+
+.leave-room-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.danger-button {
+  padding: 11px 16px;
+
+  border: 1px solid rgba(255, 80, 80, 0.3);
   border-radius: 10px;
 
-  background: rgba(120, 30, 30, 0.25);
-  color: #ff8f8f;
+  background: #8f3030;
+  color: white;
 
-  font-size: 12px;
   font-weight: 800;
 
   cursor: pointer;
-
-  z-index: 50;
-
-  transition:
-    background 0.2s,
-    transform 0.2s;
 }
 
-.leave-room-button:hover {
-  background: rgba(160, 40, 40, 0.4);
-  transform: translateY(-1px);
-}
-
-.leave-room-button:active {
-  transform: translateY(0);
+.danger-button:hover {
+  background: #aa3838;
 }
