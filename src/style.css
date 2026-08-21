@@ -944,3 +944,23 @@ button {
   color: #7dff9b !important;
   font-weight: 600;
 }
+
+#copy-room-code {
+  border: none;
+  background: transparent;
+  padding: 2px;
+  margin-left: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+#copy-room-code:hover {
+  transform: scale(1.08);
+}
+
+#copy-room-code:active {
+  transform: scale(0.95);
+}

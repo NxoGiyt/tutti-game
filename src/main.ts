@@ -57,6 +57,7 @@ let drawerId = ''
 let round = 1
 let timeLeft = 60
 let timer: number | undefined
+let gamePhase = 'lobby'
 
 let players: Player[] = []
 
@@ -385,6 +386,7 @@ if (message.type === 'draw-history') {
   round = message.round
   drawerId = message.drawerId
   timeLeft = message.timeLeft
+  gamePhase = message.phase
 
   const timerElement =
     document.querySelector<HTMLDivElement>('#timer')
@@ -1170,7 +1172,10 @@ function renderGame() {
           <div class="canvas-card">
             <canvas id="canvas"></canvas>
 
-            <div class="canvas-tools">
+            <div
+  class="canvas-tools"
+  id="canvas-tools"
+>
 
               <div class="colors">
 
@@ -1393,7 +1398,24 @@ setupTools()
 setupChat()
 renderPlayers()
 setupCopyRoomCode()
+updateDrawingTools()
 
+}
+
+function updateDrawingTools() {
+  const tools =
+    document.querySelector<HTMLDivElement>(
+      '#canvas-tools',
+    )
+
+  if (!tools) return
+
+  const amDrawer =
+    drawerId === playerId &&
+    gamePhase === 'drawing'
+
+  tools.style.display =
+    amDrawer ? 'flex' : 'none'
 }
 
 function setupCopyRoomCode() {
