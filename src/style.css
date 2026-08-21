@@ -922,3 +922,20 @@ button {
   color: white;
   font-size: 15px;
 }
+
+.system-message {
+  font-weight: 600;
+  padding: 4px 12px;
+}
+
+.system-message.join {
+  color: #35d07f;
+}
+
+.system-message.leave {
+  color: #f43f5e;
+}
+
+.system-message.skip {
+  color: #ffb020;
+}

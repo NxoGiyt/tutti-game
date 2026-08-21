@@ -97,33 +97,66 @@ function connectToServer() {
   })
 
   socket.addEventListener('message', (event) => {
-    try {
-      const message = JSON.parse(event.data)
+  try {
+    const message = JSON.parse(event.data)
 
-      if (message.type === 'room-created') {
-  roomCode = String(message.roomCode ?? '')
+    // 🟢 SPIELER BEIGETRETEN
+    if (message.type === 'player-joined') {
+      addSystemMessage(
+        `${message.playerName} ist dem Raum beigetreten.`,
+        'join',
+      )
+      return
+    }
 
-  const button =
-    document.querySelector<HTMLButtonElement>('#create-room')
+    // 🔴 SPIELER VERLASSEN
+    if (message.type === 'player-left') {
+      addSystemMessage(
+        `${message.playerName} hat den Raum verlassen.`,
+        'leave',
+      )
+      return
+    }
 
-  if (button) {
-    button.disabled = false
-    button.textContent = '🎮 Raum erstellen'
-  }
+    // 🟡 SPIELER GESKIPPED
+    if (message.type === 'player-skipped') {
+      addSystemMessage(
+        `${message.playerName} wurde geskipped, da kein Wort ausgewählt wurde.`,
+        'skip',
+      )
+      return
+    }
 
-  console.log('RAUM ERHALTEN:', roomCode)
-  renderGame()
-  showToast(`Raum ${roomCode} erstellt.`)
-  return
-}
+    // ⬇️ AB HIER DEIN KOMPLETTER ALTER CODE
 
-if (message.type === 'joined') {
-  roomCode = String(message.roomCode ?? '')
-  console.log('RAUM BEIGETRETEN:', roomCode)
+    if (message.type === 'room-created') {
+      roomCode = String(message.roomCode ?? '')
 
-  renderGame()
-  return
-}
+      const button =
+        document.querySelector<HTMLButtonElement>('#create-room')
+
+      if (button) {
+        button.disabled = false
+        button.textContent = '🎮 Raum erstellen'
+      }
+
+      console.log('RAUM ERHALTEN:', roomCode)
+      renderGame()
+      showToast(`Raum ${roomCode} erstellt.`)
+      return
+    }
+
+    if (message.type === 'joined') {
+      roomCode = String(message.roomCode ?? '')
+
+      console.log('RAUM BEIGETRETEN:', roomCode)
+
+      renderGame()
+      return
+    }
+
+    // ⚠️ ALLES, WAS BEI DIR NACH "joined" KAM,
+    // MUSS HIER WEITERHIN STEHEN.
 
       if (message.type === 'players') {
         players = message.players.map(
@@ -1735,6 +1768,41 @@ function addMessage(
   item.innerHTML = `
     <strong>${escapeHtml(name)}:</strong>
     <span>${escapeHtml(text)}</span>
+  `
+
+  messages.appendChild(item)
+
+  if (wasAtBottom) {
+    messages.scrollTop =
+      messages.scrollHeight
+  }
+}
+
+function addSystemMessage(
+  text: string,
+  type: 'join' | 'leave' | 'skip',
+) {
+  const messages =
+    document.querySelector<HTMLDivElement>(
+      '#messages',
+    )
+
+  if (!messages) return
+
+  const wasAtBottom =
+    messages.scrollHeight -
+      messages.scrollTop -
+      messages.clientHeight <
+    40
+
+  const item =
+    document.createElement('div')
+
+  item.className =
+    `message system-message ${type}`
+
+  item.innerHTML = `
+    <strong>${escapeHtml(text)}</strong>
   `
 
   messages.appendChild(item)

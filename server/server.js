@@ -193,6 +193,7 @@ function createRoom() {
 
     guessed: new Set(),
     guessOrder: [],
+    guessPoints: new Map(),
     drawHistory: [],
   }
 
@@ -303,26 +304,15 @@ function chooseWord(room, playerId, word) {
 }
 
 function calculatePoints(room, playerId) {
-  const position =
-    room.guessOrder.indexOf(playerId)
+  const position = room.guessOrder.indexOf(playerId)
 
   if (position === -1) return 0
 
-  const totalGuessers = Math.max(
-    1,
-    room.guessOrder.length,
-  )
+  const elapsedSeconds = 60 - room.timeLeft
 
-  const multiplier =
-    Math.max(
-      0.2,
-      (totalGuessers - position) /
-        totalGuessers,
-    )
-
-  return Math.round(
-    1000 * multiplier +
-      room.timeLeft * 5,
+  return Math.max(
+    0,
+    1000 - elapsedSeconds * 5,
   )
 }
 
@@ -536,16 +526,20 @@ if (
   }
 
   room.players.set(
-    playerId,
-    player,
-  )
+  playerId,
+  player,
+)
 
-  ws.roomCode = code
-  ws.playerId = playerId
+ws.roomCode = code
+ws.playerId = playerId
 
-  send(ws, 'joined', {
+send(ws, 'joined', {
   roomCode: code,
   playerId,
+})
+
+broadcast(room, 'player-joined', {
+  playerName: cleanName,
 })
 
 broadcastPlayers(room)
@@ -796,13 +790,19 @@ wss.on('connection', (ws) => {
       room.players.get(ws.playerId)
 
     if (
-      player &&
-      player.ws === ws
-    ) {
-      room.players.delete(
-        ws.playerId,
-      )
-    }
+  player &&
+  player.ws === ws
+) {
+  const leavingName = player.name
+
+  room.players.delete(
+    ws.playerId,
+  )
+
+  broadcast(room, 'player-left', {
+    playerName: leavingName,
+  })
+}
 
     if (
       room.drawerId ===
