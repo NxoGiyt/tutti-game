@@ -319,14 +319,25 @@ function handleCorrectGuess(room, player) {
     return
   }
 
+  const elapsedSeconds = 60 - room.timeLeft
+
+  const points = Math.max(
+    0,
+    1000 - elapsedSeconds * 5,
+  )
+
+  console.log(
+    'PUNKTE:',
+    points,
+    'VERGANGENE SEKUNDEN:',
+    elapsedSeconds,
+    'TIME LEFT:',
+    room.timeLeft,
+  )
+
   room.guessed.add(player.id)
   room.guessOrder.push(player.id)
-
-  const points =
-    calculatePoints(
-      room,
-      player.id,
-    )
+  room.guessPoints.set(player.id, points)
 
   player.score += points
 
@@ -334,14 +345,12 @@ function handleCorrectGuess(room, player) {
     playerId: player.id,
     playerName: player.name,
     points,
-    position:
-      room.guessOrder.length,
+    position: room.guessOrder.length,
   })
 
   broadcastPlayers(room)
 
-  const guessers =
-    room.players.size - 1
+  const guessers = room.players.size - 1
 
   if (
     room.guessed.size >=

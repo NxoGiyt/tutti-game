@@ -1388,25 +1388,64 @@ function renderGame() {
     </div>
   `
 
-  const copyButton =
+setupCanvas()
+setupTools()
+setupChat()
+renderPlayers()
+setupCopyRoomCode()
+
+}
+
+function setupCopyRoomCode() {
+  const button =
     document.querySelector<HTMLButtonElement>(
       '#copy-room-code',
     )
 
-  copyButton?.addEventListener('click', async () => {
+  if (!button) return
+
+  button.addEventListener('click', async () => {
+    const code = String(roomCode ?? '').trim()
+
+    if (!code) {
+      showToast('Kein Raumcode vorhanden.')
+      return
+    }
+
     try {
-      await navigator.clipboard.writeText(roomCode)
+      await navigator.clipboard.writeText(code)
+
       showToast('Raumcode kopiert!')
-    } catch {
-      showToast('Kopieren fehlgeschlagen.')
+    } catch (error) {
+      console.error(
+        'Raumcode konnte nicht kopiert werden:',
+        error,
+      )
+
+      // Fallback für Browser, bei denen
+      // navigator.clipboard blockiert wird.
+      const textarea =
+        document.createElement('textarea')
+
+      textarea.value = code
+      textarea.style.position = 'fixed'
+      textarea.style.left = '-9999px'
+
+      document.body.appendChild(textarea)
+
+      textarea.focus()
+      textarea.select()
+
+      try {
+        document.execCommand('copy')
+        showToast('Raumcode kopiert!')
+      } catch {
+        showToast('Kopieren fehlgeschlagen.')
+      }
+
+      textarea.remove()
     }
   })
-
-  setupCanvas()
-  setupTools()
-  setupChat()
-  renderPlayers()
-
 }
 
 

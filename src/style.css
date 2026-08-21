@@ -941,6 +941,6 @@ button {
 }
 
 .system-message.close-guess {
-  color: #7dff9b;
+  color: #7dff9b !important;
   font-weight: 600;
 }
