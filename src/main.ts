@@ -1416,6 +1416,18 @@ function updateDrawingTools() {
 
   if (!tools) return
 
+  console.log(
+    'DRAWING TOOLS:',
+    {
+      playerId,
+      drawerId,
+      gamePhase,
+      amDrawer:
+        drawerId === playerId &&
+        gamePhase === 'drawing',
+    },
+  )
+
   const amDrawer =
     drawerId === playerId &&
     gamePhase === 'drawing'
