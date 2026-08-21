@@ -1614,8 +1614,6 @@ function renderGame() {
 
           <div class="canvas-card">
 
-<div class="canvas-card">
-
   <button
     id="leave-room"
     class="leave-room-button"
@@ -1626,17 +1624,14 @@ function renderGame() {
 
   <canvas id="canvas"></canvas>
 
-  <canvas id="canvas"></canvas>
-
   <div
     id="lobby-screen"
     class="lobby-screen"
   >
 
-
-  <div class="lobby-icon">
-    🎨
-  </div>
+    <div class="lobby-icon">
+      🎨
+    </div>
 
   <span class="eyebrow">
     SPIELLOBBY
