@@ -690,6 +690,10 @@ button {
     flex-wrap: wrap;
   }
 
+  .canvas-tools[hidden] {
+  display: none !important;
+}
+
   .brush {
     margin-left: 0;
   }
