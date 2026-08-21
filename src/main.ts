@@ -1614,6 +1614,8 @@ function renderGame() {
 
           <div class="canvas-card">
 
+<div class="canvas-card">
+
   <button
     id="leave-room"
     class="leave-room-button"
@@ -1621,6 +1623,8 @@ function renderGame() {
   >
     🚪 Raum verlassen
   </button>
+
+  <canvas id="canvas"></canvas>
 
   <canvas id="canvas"></canvas>
 
