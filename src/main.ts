@@ -1392,9 +1392,8 @@ function renderGame() {
   setupTools()
   setupChat()
   renderPlayers()
-}
 
-document
+  document
     .querySelector<HTMLButtonElement>('#copy-room-code')
     ?.addEventListener('click', async () => {
       try {
@@ -1404,6 +1403,8 @@ document
         showToast('Kopieren fehlgeschlagen.')
       }
     })
+}
+
 
 
 function showWordChoice() {
