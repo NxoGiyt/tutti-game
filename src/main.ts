@@ -956,7 +956,13 @@ if (message.type === 'player-skipped') {
 }
 
 if (message.type === 'error') {
-  showToast(message.message)
+  const messageText =
+    typeof message.message === 'string'
+      ? message.message
+      : 'Ein Fehler ist aufgetreten.'
+
+  alert(messageText)
+
   return
 }
 
@@ -1607,12 +1613,23 @@ function renderGame() {
           </div>
 
           <div class="canvas-card">
-            <canvas id="canvas"></canvas>
 
-            <div
-  id="lobby-screen"
-  class="lobby-screen"
->
+  <button
+    id="leave-room"
+    class="leave-room-button"
+    type="button"
+  >
+    🚪 Raum verlassen
+  </button>
+
+  <canvas id="canvas"></canvas>
+
+  <div
+    id="lobby-screen"
+    class="lobby-screen"
+  >
+
+
   <div class="lobby-icon">
     🎨
   </div>
@@ -1928,6 +1945,7 @@ function renderGame() {
 setupCanvas()
 setupTools()
 setupChat()
+setupLeaveRoom()
 renderPlayers()
 setupCopyRoomCode()
 updateDrawingTools()
@@ -2375,6 +2393,39 @@ function setupChat() {
 
     input.value = ''
     input.focus()
+  })
+}
+
+function setupLeaveRoom() {
+  const button =
+    document.querySelector<HTMLButtonElement>(
+      '#leave-room',
+    )
+
+  if (!button) return
+
+  button.addEventListener('click', () => {
+    const confirmed =
+      window.confirm(
+        'Möchtest du den Raum wirklich verlassen und zum Hauptmenü zurückkehren?',
+      )
+
+    if (!confirmed) return
+
+    if (socket) {
+      socket.close()
+      socket = null
+    }
+
+    roomCode = ''
+    currentWord = ''
+    drawerId = ''
+    round = 1
+    timeLeft = 60
+    gamePhase = 'lobby'
+    players = []
+
+    renderLobby()
   })
 }
 

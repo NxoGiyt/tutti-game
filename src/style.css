@@ -1201,3 +1201,41 @@ button {
   font-weight: 500;
   text-transform: uppercase;
 }
+
+/* ================================
+   RAUM VERLASSEN
+================================ */
+
+.leave-room-button {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+
+  padding: 8px 12px;
+
+  border: 1px solid rgba(255, 80, 80, 0.25);
+  border-radius: 10px;
+
+  background: rgba(120, 30, 30, 0.25);
+  color: #ff8f8f;
+
+  font-size: 12px;
+  font-weight: 800;
+
+  cursor: pointer;
+
+  z-index: 50;
+
+  transition:
+    background 0.2s,
+    transform 0.2s;
+}
+
+.leave-room-button:hover {
+  background: rgba(160, 40, 40, 0.4);
+  transform: translateY(-1px);
+}
+
+.leave-room-button:active {
+  transform: translateY(0);
+}
