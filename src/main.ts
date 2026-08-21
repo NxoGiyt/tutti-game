@@ -964,28 +964,22 @@ if (message.type === 'player-skipped') {
 if (message.type === 'room-full') {
   const modal =
     document.querySelector<HTMLDivElement>(
-      '#room-full-modal',
+      '#full-room-overlay',
     )
 
   const messageElement =
     document.querySelector<HTMLElement>(
-      '#room-full-message',
+      '#full-room-text',
     )
 
-  if (!modal) {
-    console.error(
-      'room-full-modal nicht gefunden',
-    )
+  if (modal) {
+    if (messageElement) {
+      messageElement.textContent =
+        String(message.message ?? '')
+    }
 
-    return
+    modal.classList.remove('hidden')
   }
-
-  if (messageElement) {
-    messageElement.textContent =
-      String(message.message ?? '')
-  }
-
-  modal.classList.remove('hidden')
 
   return
 }
@@ -1880,39 +1874,35 @@ function renderGame() {
 
     <div id="toast" class="toast"></div>
 
-    <div
-  id="room-full-modal"
-  class="modal-backdrop hidden"
+<div
+  id="full-room-overlay"
+  class="full-room-overlay hidden"
 >
-  <div class="leave-room-card">
+  <div class="full-room-dialog">
 
-    <div class="choice-icon">
+    <div class="full-room-icon">
       🚫
     </div>
 
     <span class="eyebrow">
-      RAUM VOLL
+      BEITRITT NICHT MÖGLICH
     </span>
 
     <h2>
-      Kein Platz mehr
+      Raum ist voll
     </h2>
 
-    <p id="room-full-message">
+    <p id="full-room-text">
       Der Raum ist voll.
     </p>
 
-    <div class="leave-room-actions">
-
-      <button
-        id="room-full-close"
-        class="secondary-button"
-        type="button"
-      >
-        ✓ Verstanden
-      </button>
-
-    </div>
+    <button
+      id="full-room-ok"
+      class="primary-button"
+      type="button"
+    >
+      ✓ Verstanden
+    </button>
 
   </div>
 </div>
@@ -2092,20 +2082,20 @@ renderPlayers()
 setupCopyRoomCode()
 updateDrawingTools()
 
-const roomFullModal =
+const fullRoomOverlay =
   document.querySelector<HTMLDivElement>(
-    '#room-full-modal',
+    '#full-room-overlay',
   )
 
-const roomFullClose =
+const fullRoomOk =
   document.querySelector<HTMLButtonElement>(
-    '#room-full-close',
+    '#full-room-ok',
   )
 
-roomFullClose?.addEventListener(
+fullRoomOk?.addEventListener(
   'click',
   () => {
-    roomFullModal?.classList.add('hidden')
+    fullRoomOverlay?.classList.add('hidden')
   },
 )
 

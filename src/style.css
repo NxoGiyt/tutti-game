@@ -1306,3 +1306,68 @@ button {
 .danger-button:hover {
   background: #aa3838;
 }
+
+.full-room-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.full-room-overlay.hidden {
+  display: none;
+}
+
+.full-room-dialog {
+  width: min(430px, calc(100% - 32px));
+  padding: 32px;
+
+  border-radius: 24px;
+
+  background: #191923;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  box-shadow:
+    0 30px 100px rgba(0, 0, 0, 0.55);
+
+  text-align: center;
+}
+
+.full-room-icon {
+  width: 72px;
+  height: 72px;
+
+  margin: 0 auto 18px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 22px;
+
+  background: #29232b;
+
+  font-size: 34px;
+}
+
+.full-room-dialog h2 {
+  margin: 10px 0;
+  font-size: 30px;
+}
+
+.full-room-dialog p {
+  margin: 0 auto 28px;
+  max-width: 350px;
+
+  color: #9999a8;
+  line-height: 1.5;
+}
+
+.full-room-dialog button {
+  width: 100%;
+}
