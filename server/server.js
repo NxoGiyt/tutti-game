@@ -133,11 +133,17 @@ function broadcastPlayers(room) {
       ready: player.ready,
       isDrawer:
         player.id === room.drawerId,
+      isHost:
+        player.id === room.hostId,
     }),
   )
 
   broadcast(room, 'players', {
     players,
+    hostId: room.hostId,
+    maxPlayers: room.maxPlayers,
+    roundTime: room.roundTime,
+    maxRounds: room.maxRounds,
   })
 }
 
@@ -570,10 +576,17 @@ if (
 }
 
 function handleCreate(ws, message) {
-    console.log('CREATE-ROOM VOM CLIENT:', message)
+  console.log(
+    'CREATE-ROOM VOM CLIENT:',
+    message,
+  )
+
   const {
     playerId,
     name,
+    maxPlayers,
+    roundTime,
+    maxRounds,
   } = message
 
   const cleanName =
@@ -595,6 +608,15 @@ function handleCreate(ws, message) {
 
   const room = createRoom()
 
+  room.maxPlayers =
+    Number(maxPlayers) || 8
+
+  room.roundTime =
+    Number(roundTime) || 60
+
+  room.maxRounds =
+    Number(maxRounds) || 5
+
   const player = {
     id: playerId,
     name: cleanName,
@@ -609,17 +631,19 @@ function handleCreate(ws, message) {
     player,
   )
 
+  // Der Ersteller ist automatisch Host.
+  room.hostId = playerId
+
   ws.roomCode = room.code
   ws.playerId = playerId
 
-  
-    send(ws, 'room-created', {
+  send(ws, 'room-created', {
     roomCode: room.code,
     playerId,
   })
 
   broadcastPlayers(room)
-  startGame(room)
+  broadcastState(room)
 }
 
 function handleMessage(ws, message) {
@@ -657,17 +681,18 @@ function handleMessage(ws, message) {
   if (!player) return
 
   if (
-    message.type === 'start-game'
+  message.type === 'start-game'
+) {
+  if (
+    room.players.size >= 2 &&
+    player.id === room.hostId &&
+    room.phase === 'lobby'
   ) {
-    if (
-      room.players.size >= 1 &&
-      room.phase === 'lobby'
-    ) {
-      startGame(room)
-    }
-
-    return
+    startGame(room)
   }
+
+  return
+}
 
   if (
     message.type === 'choose-word'

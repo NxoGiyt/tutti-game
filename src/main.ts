@@ -58,6 +58,10 @@ let round = 1
 let timeLeft = 60
 let timer: number | undefined
 let gamePhase = 'lobby'
+let hostId = ''
+let maxPlayers = 8
+let roundTime = 60
+let maxRounds = 5
 
 let players: Player[] = []
 
@@ -168,29 +172,42 @@ function connectToServer() {
     // MUSS HIER WEITERHIN STEHEN.
 
       if (message.type === 'players') {
-        players = message.players.map(
-          (player: Player & { isDrawer?: boolean }) => ({
-            id: player.id,
-            name: player.name,
-            score: player.score,
-            ready: player.ready,
-            color: player.color,
-          }),
-        )
+        hostId = String(message.hostId ?? '')
+maxPlayers = Number(message.maxPlayers ?? 8)
+roundTime = Number(message.roundTime ?? 60)
+maxRounds = Number(message.maxRounds ?? 5)
+  players = message.players.map(
+    (
+      player: Player & {
+        isDrawer?: boolean
+        isHost?: boolean
+      },
+    ) => ({
+      id: player.id,
+      name: player.name,
+      score: player.score,
+      ready: player.ready,
+      color: player.color,
+    }),
+  )
 
-        const drawer =
-          message.players.find(
-            (player: Player & { isDrawer?: boolean }) =>
-              player.isDrawer,
-          )
+  const drawer =
+    message.players.find(
+      (
+        player: Player & {
+          isDrawer?: boolean
+        },
+      ) => player.isDrawer,
+    )
 
-        if (drawer) {
-          drawerId = drawer.id
-        }
+  if (drawer) {
+    drawerId = drawer.id
+  }
 
-        renderPlayers()
-        return
-      }
+  renderPlayers()
+
+  return
+}
 
       if (message.type === 'draw') {
         if (message.playerId === playerId) {
@@ -2069,7 +2086,7 @@ function renderPlayers() {
 
   if (count) {
     count.textContent =
-      String(players.length)
+      `${players.length}/${maxPlayers}`
   }
 
   container.innerHTML = [...players]
@@ -2097,13 +2114,21 @@ function renderPlayers() {
                   ? '<small>DU</small>'
                   : ''
               }
+
+              ${
+                player.id === hostId
+                  ? '<small>👑 HOST</small>'
+                  : ''
+              }
             </strong>
 
             <span>
               ${
-                player.id === drawerId
-                  ? '✏️ zeichnet'
-                  : '🎯 rät'
+                gamePhase === 'lobby'
+                  ? '⏳ wartet'
+                  : player.id === drawerId
+                    ? '✏️ zeichnet'
+                    : '🎯 rät'
               }
             </span>
 
@@ -2114,7 +2139,8 @@ function renderPlayers() {
           </div>
 
           ${
-            index === 0
+            index === 0 &&
+            gamePhase !== 'lobby'
               ? '<div class="rank">👑</div>'
               : ''
           }
@@ -2123,6 +2149,58 @@ function renderPlayers() {
       `,
     )
     .join('')
+
+  if (gamePhase !== 'lobby') {
+    return
+  }
+
+  const isHost =
+    playerId === hostId
+
+  const canStart =
+    isHost &&
+    players.length >= 2
+
+  const existingStart =
+    document.querySelector(
+      '#start-game-lobby',
+    )
+
+  if (existingStart) {
+    existingStart.remove()
+  }
+
+  if (isHost) {
+    const startButton =
+      document.createElement('button')
+
+    startButton.id =
+      'start-game-lobby'
+
+    startButton.className =
+      'primary-button'
+
+    startButton.textContent =
+      canStart
+        ? '🚀 Spiel starten'
+        : '⏳ Warte auf Spieler...'
+
+    startButton.disabled =
+      !canStart
+
+    startButton.addEventListener(
+      'click',
+      () => {
+        if (!canStart) return
+
+        sendToServer('start-game')
+      },
+    )
+
+    container.parentElement?.appendChild(
+      startButton,
+    )
+  }
 }
 
 
