@@ -1124,12 +1124,12 @@ function renderGame() {
   <strong>${escapeHtml(roomCode)}</strong>
 
   <button
-    id="copy-room-code"
-    type="button"
-    title="Raumcode kopieren"
-  >
-    📋
-  </button>
+  id="copy-room-code"
+  type="button"
+  title="Raumcode kopieren"
+>
+  📋
+</button>
 </div>
 
 
@@ -1388,21 +1388,25 @@ function renderGame() {
     </div>
   `
 
+  const copyButton =
+    document.querySelector<HTMLButtonElement>(
+      '#copy-room-code',
+    )
+
+  copyButton?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(roomCode)
+      showToast('Raumcode kopiert!')
+    } catch {
+      showToast('Kopieren fehlgeschlagen.')
+    }
+  })
+
   setupCanvas()
   setupTools()
   setupChat()
   renderPlayers()
 
-  document
-    .querySelector<HTMLButtonElement>('#copy-room-code')
-    ?.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(roomCode)
-        showToast('Raumcode kopiert!')
-      } catch {
-        showToast('Kopieren fehlgeschlagen.')
-      }
-    })
 }
 
 
@@ -1506,6 +1510,7 @@ function drawRemoteStroke(data: {
 
   ctx.restore()
 }
+
 
 function setupCanvas() {
   const canvas =

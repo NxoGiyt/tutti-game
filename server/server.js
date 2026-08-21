@@ -304,15 +304,13 @@ function chooseWord(room, playerId, word) {
 }
 
 function calculatePoints(room, playerId) {
-  const position = room.guessOrder.indexOf(playerId)
-
-  if (position === -1) return 0
+  if (!room.guessed.has(playerId)) return 0
 
   const elapsedSeconds = 60 - room.timeLeft
 
   return Math.max(
     0,
-    1000 - elapsedSeconds * 5,
+    1000 - 5 * elapsedSeconds,
   )
 }
 
@@ -689,11 +687,11 @@ function handleMessage(ws, message) {
   player.id !== room.drawerId &&
   !room.guessed.has(player.id)
 ) {
-  const guess = normalize(text)
-  const answer = normalize(room.word)
-
-  // ✅ Wort richtig
-  if (guess === answer) {
+  // EXAKT RICHTIG
+  if (
+    normalize(text) ===
+    normalize(room.word)
+  ) {
     handleCorrectGuess(
       room,
       player,
@@ -701,25 +699,18 @@ function handleMessage(ws, message) {
     return
   }
 
-  // 🟢 Nur 1 Buchstabe Unterschied
+  // SEHR NAH DRAN
   if (
-    guess.length === answer.length &&
-    guess.length > 0
+    isVeryCloseGuess(
+      text,
+      room.word,
+    )
   ) {
-    let differences = 0
+    send(player.ws, 'close-guess', {
+      text,
+    })
 
-    for (let i = 0; i < guess.length; i++) {
-      if (guess[i] !== answer[i]) {
-        differences++
-      }
-    }
-
-    if (differences === 1) {
-      send(player.ws, 'close-guess', {
-        text,
-      })
-      return
-    }
+    return
   }
 }
 
@@ -778,6 +769,50 @@ function normalize(value) {
       /[^\p{L}\p{N}]/gu,
       '',
     )
+}
+
+function isVeryCloseGuess(guess, word) {
+  const a = normalize(guess)
+  const b = normalize(word)
+
+  if (!a || !b) return false
+
+  // Exakt richtig -> KEIN "sehr nah"
+  if (a === b) return false
+
+  // Wenn die Länge sich um mehr als 1 unterscheidet,
+  // kann es nicht nur 1 Buchstabe zu viel/zu wenig sein.
+  if (Math.abs(a.length - b.length) > 1) {
+    return false
+  }
+
+  // Levenshtein-Distanz berechnen
+  const matrix = Array.from(
+    { length: a.length + 1 },
+    () => Array(b.length + 1).fill(0),
+  )
+
+  for (let i = 0; i <= a.length; i++) {
+    matrix[i][0] = i
+  }
+
+  for (let j = 0; j <= b.length; j++) {
+    matrix[0][j] = j
+  }
+
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost,
+      )
+    }
+  }
+
+  return matrix[a.length][b.length] === 1
 }
 
 wss.on('connection', (ws) => {

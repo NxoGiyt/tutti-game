@@ -942,4 +942,5 @@ button {
 
 .system-message.close-guess {
   color: #7dff9b;
+  font-weight: 600;
 }
