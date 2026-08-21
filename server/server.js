@@ -545,7 +545,7 @@ function handleJoin(ws, message) {
   }
 
   if (room.players.size >= room.maxPlayers) {
-  send(ws, 'error', {
+  send(ws, 'room-full', {
     message:
       `Der Raum ist voll. Maximal ${room.maxPlayers} Spieler sind erlaubt.`,
   })

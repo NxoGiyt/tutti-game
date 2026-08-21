@@ -961,6 +961,35 @@ if (message.type === 'player-skipped') {
   return
 }
 
+if (message.type === 'room-full') {
+  const modal =
+    document.querySelector<HTMLDivElement>(
+      '#room-full-modal',
+    )
+
+  const messageElement =
+    document.querySelector<HTMLElement>(
+      '#room-full-message',
+    )
+
+  if (!modal) {
+    console.error(
+      'room-full-modal nicht gefunden',
+    )
+
+    return
+  }
+
+  if (messageElement) {
+    messageElement.textContent =
+      String(message.message ?? '')
+  }
+
+  modal.classList.remove('hidden')
+
+  return
+}
+
 if (message.type === 'error') {
   const fullMessage =
     String(message.message ?? '')
