@@ -100,6 +100,14 @@ function connectToServer() {
   try {
     const message = JSON.parse(event.data)
 
+    if (message.type === 'close-guess') {
+  addSystemMessage(
+    `${message.text} ist sehr nah dran am gesuchten Wort!`,
+    'close-guess',
+  )
+  return
+}
+
     // 🟢 SPIELER BEIGETRETEN
     if (message.type === 'player-joined') {
       addSystemMessage(
@@ -1112,9 +1120,18 @@ function renderGame() {
         </div>
 
         <div class="room-badge">
-          RAUM
-          <strong>${escapeHtml(roomCode)}</strong>
-        </div>
+  RAUM
+  <strong>${escapeHtml(roomCode)}</strong>
+
+  <button
+    id="copy-room-code"
+    type="button"
+    title="Raumcode kopieren"
+  >
+    📋
+  </button>
+</div>
+
 
         <div class="round-info">
           <span>RUNDE</span>
@@ -1376,6 +1393,18 @@ function renderGame() {
   setupChat()
   renderPlayers()
 }
+
+document
+    .querySelector<HTMLButtonElement>('#copy-room-code')
+    ?.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(roomCode)
+        showToast('Raumcode kopiert!')
+      } catch {
+        showToast('Kopieren fehlgeschlagen.')
+      }
+    })
+
 
 function showWordChoice() {
   clearInterval(timer)
@@ -1780,7 +1809,7 @@ function addMessage(
 
 function addSystemMessage(
   text: string,
-  type: 'join' | 'leave' | 'skip',
+  type: 'join' | 'leave' | 'skip' | 'close-guess',
 ) {
   const messages =
     document.querySelector<HTMLDivElement>(

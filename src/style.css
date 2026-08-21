@@ -939,3 +939,7 @@ button {
 .system-message.skip {
   color: #ffb020;
 }
+
+.system-message.close-guess {
+  color: #7dff9b;
+}

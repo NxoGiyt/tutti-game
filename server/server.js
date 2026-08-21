@@ -685,19 +685,43 @@ function handleMessage(ws, message) {
     if (!text) return
 
     if (
-      room.phase === 'drawing' &&
-      player.id !== room.drawerId &&
-      !room.guessed.has(player.id) &&
-      normalize(text) ===
-        normalize(room.word)
-    ) {
-      handleCorrectGuess(
-        room,
-        player,
-      )
+  room.phase === 'drawing' &&
+  player.id !== room.drawerId &&
+  !room.guessed.has(player.id)
+) {
+  const guess = normalize(text)
+  const answer = normalize(room.word)
 
+  // ✅ Wort richtig
+  if (guess === answer) {
+    handleCorrectGuess(
+      room,
+      player,
+    )
+    return
+  }
+
+  // 🟢 Nur 1 Buchstabe Unterschied
+  if (
+    guess.length === answer.length &&
+    guess.length > 0
+  ) {
+    let differences = 0
+
+    for (let i = 0; i < guess.length; i++) {
+      if (guess[i] !== answer[i]) {
+        differences++
+      }
+    }
+
+    if (differences === 1) {
+      send(player.ws, 'close-guess', {
+        text,
+      })
       return
     }
+  }
+}
 
     broadcast(room, 'chat', {
       playerId: player.id,
