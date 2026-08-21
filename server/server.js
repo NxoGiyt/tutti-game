@@ -241,6 +241,7 @@ function startChoosing(room) {
   room.timeLeft = 8
   room.guessed.clear()
   room.guessOrder = []
+  room.guessPoints.clear()
 
   broadcastState(room)
   broadcastPlayers(room)
@@ -304,14 +305,7 @@ function chooseWord(room, playerId, word) {
 }
 
 function calculatePoints(room, playerId) {
-  if (!room.guessed.has(playerId)) return 0
-
-  const elapsedSeconds = 60 - room.timeLeft
-
-  return Math.max(
-    0,
-    1000 - 5 * elapsedSeconds,
-  )
+  return room.guessPoints.get(playerId) ?? 0
 }
 
 function handleCorrectGuess(room, player) {
@@ -319,27 +313,35 @@ function handleCorrectGuess(room, player) {
     return
   }
 
-  const elapsedSeconds = 60 - room.timeLeft
+  // 60 Sekunden Startzeit - aktuelle Restzeit
+  // = tatsächlich vergangene Sekunden
+  const elapsedSeconds =
+    60 - room.timeLeft
 
+  // 1000 Punkte Startwert,
+  // pro vergangener Sekunde 5 Punkte weniger.
   const points = Math.max(
     0,
     1000 - elapsedSeconds * 5,
   )
 
-  console.log(
-    'PUNKTE:',
-    points,
-    'VERGANGENE SEKUNDEN:',
-    elapsedSeconds,
-    'TIME LEFT:',
-    room.timeLeft,
-  )
-
   room.guessed.add(player.id)
   room.guessOrder.push(player.id)
-  room.guessPoints.set(player.id, points)
 
+  // EXAKT DIESE PUNKTZAHL SPEICHERN
+  room.guessPoints.set(
+    player.id,
+    points,
+  )
+
+  // EXAKT DIESE PUNKTZAHL aufs Konto
   player.score += points
+
+  console.log(
+    `[PUNKTE] ${player.name}:`,
+    `${points} Punkte`,
+    `(${elapsedSeconds}s vergangen)`,
+  )
 
   broadcast(room, 'correct-guess', {
     playerId: player.id,
@@ -350,7 +352,8 @@ function handleCorrectGuess(room, player) {
 
   broadcastPlayers(room)
 
-  const guessers = room.players.size - 1
+  const guessers =
+    room.players.size - 1
 
   if (
     room.guessed.size >=
@@ -432,6 +435,7 @@ function nextRound(room) {
   room.timeLeft = 8
   room.guessed.clear()
   room.guessOrder = []
+  room.guessPoints.clear()
 
   // NEUE WORTAUSWAHL
   startChoosing(room)
