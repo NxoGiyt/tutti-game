@@ -212,6 +212,12 @@ function connectToServer() {
 drawerId =
   drawer?.id ?? ''
 
+if (players.length < 2) {
+  currentWord = ''
+  drawerId = ''
+  gamePhase = 'lobby'
+}
+
 updateDrawingTools()
 
 renderPlayers()
@@ -1822,6 +1828,7 @@ function renderGame() {
     </main>
 
     <div id="toast" class="toast"></div>
+    
 
     <div id="word-choice" class="modal-backdrop">
       <div class="word-choice-card">
@@ -2691,7 +2698,7 @@ function renderPlayers() {
     startButton.textContent =
       canStart
         ? '🚀 Spiel starten'
-        : '⏳ Warte auf Spieler...'
+        : '⏳ Auf Spieler warten'
 
     startButton.disabled =
       !canStart

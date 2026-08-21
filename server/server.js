@@ -1058,21 +1058,45 @@ wss.on('connection', (ws) => {
   room.guessPoints.clear()
 
   const remainingPlayers =
-    [...room.players.keys()]
+  [...room.players.keys()]
 
-  const nextIndex =
-    leavingIndex %
-    remainingPlayers.length
+if (remainingPlayers.length === 0) {
+  deleteRoomIfEmpty(room)
+  return
+}
 
-  room.drawerId =
-    remainingPlayers[nextIndex]
+if (remainingPlayers.length === 1) {
+  clearRoomTimers(room)
 
-  room.round += 1
+  room.phase = 'lobby'
+  room.drawerId = null
+  room.word = null
+  room.wordChoices = []
+  room.drawHistory = []
+  room.timeLeft = 0
+  room.guessed.clear()
+  room.guessOrder = []
+  room.guessPoints.clear()
 
   broadcastPlayers(room)
   broadcastState(room)
 
-  startChoosing(room)
+  return
+}
+
+const nextIndex =
+  leavingIndex %
+  remainingPlayers.length
+
+room.drawerId =
+  remainingPlayers[nextIndex]
+
+room.round += 1
+
+broadcastPlayers(room)
+broadcastState(room)
+
+startChoosing(room)
 })
 })
 
