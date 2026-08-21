@@ -225,6 +225,7 @@ function startGame(room) {
   if (room.players.size < 1) return
 
   room.round = 1
+
   room.drawerId =
     [...room.players.keys()][0]
 
@@ -405,8 +406,9 @@ function finishRound(room) {
 function nextRound(room) {
   clearRoomTimers(room)
 
-  const playerIds =
-    [...room.players.keys()]
+  const playerIds = [
+    ...room.players.keys(),
+  ]
 
   if (!playerIds.length) {
     deleteRoomIfEmpty(room)
@@ -414,30 +416,30 @@ function nextRound(room) {
   }
 
   const currentIndex =
-    Math.max(
-      0,
-      playerIds.indexOf(room.drawerId),
-    )
+    playerIds.indexOf(room.drawerId)
 
   const nextIndex =
-    (currentIndex + 1) %
-    playerIds.length
+    currentIndex >= 0
+      ? (currentIndex + 1) % playerIds.length
+      : 0
 
-  // NÄCHSTER ZEICHNER
+  // Nächster Zeichner
   room.drawerId =
     playerIds[nextIndex]
 
-  room.round++
+  // EXAKT EINMAL neue Runde
+  room.round += 1
 
-  // ALLES AUS DER ALTEN RUNDE LÖSCHEN
+  // Alte Rundendaten löschen
   room.word = null
   room.wordChoices = []
+  room.drawHistory = []
   room.timeLeft = 8
   room.guessed.clear()
   room.guessOrder = []
   room.guessPoints.clear()
 
-  // NEUE WORTAUSWAHL
+  // Neue Runde starten
   startChoosing(room)
 }
 
@@ -876,17 +878,38 @@ wss.on('connection', (ws) => {
   })
 }
 
-    if (
-      room.drawerId ===
-      ws.playerId
-    ) {
-      clearRoomTimers(room)
+    if (room.drawerId === ws.playerId) {
+  clearRoomTimers(room)
 
-      room.phase = 'lobby'
-      room.drawerId = null
-      room.word = null
-      room.wordChoices = []
-    }
+  // Position des Spielers merken,
+  // bevor er aus der Map entfernt wurde.
+  const playerIds = [...room.players.keys()]
+  const leavingIndex =
+    playerIds.indexOf(ws.playerId)
+
+  room.phase = 'lobby'
+  room.drawerId = null
+  room.word = null
+  room.wordChoices = []
+  room.drawHistory = []
+  room.guessed.clear()
+  room.guessOrder = []
+  room.guessPoints.clear()
+
+  const remainingPlayers =
+    [...room.players.keys()]
+
+  if (remainingPlayers.length > 0) {
+
+    const nextIndex =
+      leavingIndex % remainingPlayers.length
+
+    room.drawerId =
+      remainingPlayers[nextIndex]
+
+    startChoosing(room)
+  }
+}
 
     broadcastPlayers(room)
     broadcastState(room)
