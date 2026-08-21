@@ -962,13 +962,35 @@ if (message.type === 'player-skipped') {
 }
 
 if (message.type === 'error') {
-  const messageText =
-    typeof message.message === 'string'
-      ? message.message
-      : 'Ein Fehler ist aufgetreten.'
+  const fullMessage =
+    String(message.message ?? '')
 
-  alert(messageText)
+  if (
+    fullMessage.includes('Raum ist voll')
+  ) {
+    const modal =
+      document.querySelector<HTMLDivElement>(
+        '#room-full-modal',
+      )
 
+    const messageElement =
+      document.querySelector<HTMLElement>(
+        '#room-full-message',
+      )
+
+    if (modal) {
+      if (messageElement) {
+        messageElement.textContent =
+          fullMessage
+      }
+
+      modal.classList.remove('hidden')
+    }
+
+    return
+  }
+
+  showToast(fullMessage)
   return
 }
 
@@ -1828,6 +1850,43 @@ function renderGame() {
     </main>
 
     <div id="toast" class="toast"></div>
+
+    <div
+  id="room-full-modal"
+  class="modal-backdrop hidden"
+>
+  <div class="leave-room-card">
+
+    <div class="choice-icon">
+      🚫
+    </div>
+
+    <span class="eyebrow">
+      RAUM VOLL
+    </span>
+
+    <h2>
+      Kein Platz mehr
+    </h2>
+
+    <p id="room-full-message">
+      Der Raum ist voll.
+    </p>
+
+    <div class="leave-room-actions">
+
+      <button
+        id="room-full-close"
+        class="secondary-button"
+        type="button"
+      >
+        ✓ Verstanden
+      </button>
+
+    </div>
+
+  </div>
+</div>
     
 
     <div id="word-choice" class="modal-backdrop">
@@ -2003,6 +2062,23 @@ setupLeaveRoom()
 renderPlayers()
 setupCopyRoomCode()
 updateDrawingTools()
+
+const roomFullModal =
+  document.querySelector<HTMLDivElement>(
+    '#room-full-modal',
+  )
+
+const roomFullClose =
+  document.querySelector<HTMLButtonElement>(
+    '#room-full-close',
+  )
+
+roomFullClose?.addEventListener(
+  'click',
+  () => {
+    roomFullModal?.classList.add('hidden')
+  },
+)
 
 }
 
