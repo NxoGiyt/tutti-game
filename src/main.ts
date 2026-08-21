@@ -1416,26 +1416,14 @@ function updateDrawingTools() {
 
   if (!tools) return
 
-  console.log(
-    'DRAWING TOOLS:',
-    {
-      playerId,
-      drawerId,
-      gamePhase,
-      amDrawer:
-        drawerId === playerId &&
-        gamePhase === 'drawing',
-    },
-  )
-
   const amDrawer =
     drawerId === playerId &&
     gamePhase === 'drawing'
 
   if (amDrawer) {
-    tools.removeAttribute('hidden')
+    tools.style.display = 'flex'
   } else {
-    tools.setAttribute('hidden', 'true')
+    tools.style.display = 'none'
   }
 }
 
